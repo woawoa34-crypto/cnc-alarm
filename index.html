@@ -1,0 +1,3658 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#121212" />
+    <title>SINUMERIK 840D 알람 ↔ DB2 변환기 · 원본 PDF 매뉴얼 뷰어</title>
+    <meta name="description" content="지멘스 SINUMERIK 840D CNC PLC 알람 번호(70xxxx)와 DB2 비트 어드레스(DB2.DBX___._) 양방향 즉시 변환 및 원격 서버 연동형 원본 PDF 매뉴얼 뷰어" />
+    <meta property="og:title" content="SINUMERIK 840D 알람 ↔ DB2 변환기 · 원본 PDF 매뉴얼 뷰어" />
+    <meta property="og:description" content="지멘스 SINUMERIK 840D CNC PLC 알람 번호(70xxxx)와 DB2 비트 어드레스(DB2.DBX___._) 양방향 즉시 변환 및 원격 서버 연동형 원본 PDF 매뉴얼 뷰어" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+      :root {
+        --bg-canvas: #121212;
+        --bg-card: #1e1e1e;
+        --bg-elevated: #262626;
+        --bg-input: #161616;
+        --bg-viewer-well: #0d0d0d;
+        --border-subtle: #2e2e2e;
+        --border-strong: #404040;
+        --text-primary: #f5f5f5;
+        --text-secondary: #b0b0b0;
+        --text-muted: #7a7a7a;
+        --accent-orange: #ff9800;
+        --accent-orange-hover: #ffa726;
+        --accent-orange-dim: rgba(255, 152, 0, 0.14);
+        --accent-cyan: #00e5ff;
+        --accent-cyan-dim: rgba(0, 229, 255, 0.14);
+        --highlight-fill: rgba(255, 213, 79, 0.45);
+        --highlight-border: #ff9800;
+        --status-warn: #ffb74d;
+        --status-error: #ff6b6b;
+        --status-ok: #69f0ae;
+        --active-accent: var(--accent-orange);
+        --active-accent-dim: var(--accent-orange-dim);
+        --radius-card: 16px;
+        --radius-control: 12px;
+        --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Segoe UI", sans-serif;
+        --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", "Liberation Mono", monospace;
+        --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      body.mode-db2 {
+        --active-accent: var(--accent-cyan);
+        --active-accent-dim: var(--accent-cyan-dim);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg-canvas);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        line-height: 1.5;
+        min-height: 100%;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100dvh;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+
+      body.viewer-fullscreen-lock {
+        overflow: hidden;
+      }
+
+      .app-shell {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 14px 16px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        flex: 1;
+      }
+
+      /* Header */
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+
+      .brand-group {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .brand-title {
+        margin: 0;
+        font-size: 1.125rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .brand-spec {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .btn-admin-toggle {
+        appearance: none;
+        min-height: 56px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border-subtle);
+        background-color: transparent;
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.8125rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: background-color 140ms var(--ease-out), border-color 140ms var(--ease-out), color 140ms var(--ease-out);
+      }
+
+      .btn-admin-toggle:hover {
+        background-color: var(--bg-card);
+        color: var(--text-primary);
+        border-color: var(--border-strong);
+      }
+
+      .btn-admin-toggle.is-active {
+        border-color: rgba(255, 152, 0, 0.55);
+        background-color: var(--accent-orange-dim);
+        color: var(--accent-orange);
+      }
+
+      .btn-admin-toggle:focus-visible {
+        outline: 2px solid var(--accent-orange);
+        outline-offset: 2px;
+      }
+
+      /* Admin Panel (Hidden in Team Member Mode) */
+      .admin-panel {
+        background-color: var(--bg-card);
+        border: 1.5px solid rgba(255, 152, 0, 0.45);
+        border-radius: var(--radius-card);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .admin-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .admin-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--accent-orange);
+      }
+
+      .admin-subtitle {
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .admin-actions-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .manual-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .manual-file-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 58px;
+        padding: 6px 6px 6px 14px;
+        background-color: var(--bg-input);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-control);
+      }
+
+      .manual-file-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .manual-file-name {
+        font-size: 0.9375rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .manual-file-meta {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-secondary);
+      }
+
+      .btn-remove-file {
+        appearance: none;
+        min-width: 56px;
+        min-height: 56px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background-color: transparent;
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out);
+      }
+
+      .btn-remove-file:hover {
+        background-color: rgba(255, 107, 107, 0.14);
+        color: var(--status-error);
+      }
+
+      .btn-remove-file:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      .admin-deploy-note {
+        margin: 0;
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        line-height: 1.5;
+      }
+
+      .admin-deploy-note code {
+        font-family: var(--font-mono);
+        color: var(--text-secondary);
+      }
+
+      /* Progress Bar */
+      .progress-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 12px;
+        background-color: var(--bg-input);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-control);
+      }
+
+      .progress-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .progress-filename {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+      }
+
+      .progress-pct {
+        font-family: var(--font-mono);
+        font-weight: 800;
+        color: var(--accent-orange);
+        flex-shrink: 0;
+      }
+
+      .progress-track {
+        width: 100%;
+        height: 8px;
+        background-color: #2a2a2a;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background-color: var(--accent-orange);
+        transition: width 120ms linear;
+      }
+
+      /* Mode Switch Tabs */
+      .mode-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        background-color: var(--bg-card);
+        padding: 6px;
+        border-radius: var(--radius-card);
+        border: 1px solid var(--border-subtle);
+      }
+
+      .tab-btn {
+        appearance: none;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        min-height: 56px;
+        padding: 10px 12px;
+        background: transparent;
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.9375rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out), transform 120ms var(--ease-out);
+      }
+
+      .tab-btn:hover {
+        color: var(--text-primary);
+        background-color: rgba(255, 255, 255, 0.04);
+      }
+
+      .tab-btn:active {
+        transform: scale(0.98);
+      }
+
+      .tab-btn:focus-visible {
+        outline: 2px solid var(--active-accent);
+        outline-offset: 2px;
+      }
+
+      .tab-btn[aria-selected="true"]#tabAlarmToDb2 {
+        background-color: var(--accent-orange);
+        color: #121212;
+      }
+
+      .tab-btn[aria-selected="true"]#tabDb2ToAlarm {
+        background-color: var(--accent-cyan);
+        color: #121212;
+      }
+
+      /* Calculator Top Grid */
+      .calc-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .calc-primary,
+      .calc-secondary {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Panel Card */
+      .panel {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-card);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .panel-label {
+        margin: 0;
+        font-size: 0.9375rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        letter-spacing: 0.01em;
+      }
+
+      .panel-hint {
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Inputs & Action Controls (All >= 56px height) */
+      .input-row {
+        display: flex;
+        align-items: stretch;
+        gap: 10px;
+      }
+
+      .field-input,
+      .field-select {
+        flex: 1;
+        min-width: 0;
+        min-height: 58px;
+        padding: 12px 16px;
+        background-color: var(--bg-input);
+        border: 1.5px solid var(--border-strong);
+        border-radius: var(--radius-control);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: 1.5rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.06em;
+        transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+      }
+
+      .field-select {
+        font-family: var(--font-sans);
+        font-size: 0.9375rem;
+        font-weight: 700;
+        letter-spacing: 0;
+        cursor: pointer;
+        padding-right: 36px;
+      }
+
+      .field-input.is-text-search {
+        font-family: var(--font-sans);
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0;
+      }
+
+      .field-input::placeholder {
+        color: var(--text-muted);
+        font-weight: 500;
+        font-size: 1.0625rem;
+        letter-spacing: 0.01em;
+      }
+
+      .field-input.is-text-search::placeholder {
+        font-size: 0.9375rem;
+      }
+
+      .field-input:focus,
+      .field-select:focus {
+        outline: none;
+        border-color: var(--active-accent);
+        box-shadow: 0 0 0 3px var(--active-accent-dim);
+      }
+
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+      }
+
+      .btn-control {
+        appearance: none;
+        min-height: 58px;
+        min-width: 56px;
+        padding: 0 16px;
+        border-radius: var(--radius-control);
+        border: 1px solid var(--border-strong);
+        background-color: var(--bg-elevated);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.9375rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: background-color 140ms var(--ease-out), border-color 140ms var(--ease-out), transform 100ms var(--ease-out);
+      }
+
+      .btn-control:hover {
+        background-color: #303030;
+        border-color: #555555;
+      }
+
+      .btn-control:active {
+        transform: scale(0.97);
+      }
+
+      .btn-control:focus-visible {
+        outline: 2px solid var(--active-accent);
+        outline-offset: 2px;
+      }
+
+      .btn-control:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-accent-solid {
+        background-color: var(--accent-orange);
+        border-color: var(--accent-orange);
+        color: #121212;
+      }
+
+      .btn-accent-solid:hover {
+        background-color: var(--accent-orange-hover);
+        border-color: var(--accent-orange-hover);
+      }
+
+      .btn-accent-outline {
+        border-color: rgba(255, 152, 0, 0.5);
+        background-color: var(--accent-orange-dim);
+        color: var(--accent-orange);
+      }
+
+      .btn-accent-outline:hover {
+        background-color: rgba(255, 152, 0, 0.22);
+        border-color: var(--accent-orange);
+      }
+
+      .btn-danger-outline {
+        border-color: rgba(255, 107, 107, 0.4);
+        background-color: rgba(255, 107, 107, 0.1);
+        color: var(--status-error);
+      }
+
+      .btn-danger-outline:hover {
+        background-color: rgba(255, 107, 107, 0.2);
+        border-color: var(--status-error);
+      }
+
+      .helper-actions {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+      }
+
+      /* Validation / Feedback Message */
+      .feedback-line {
+        min-height: 22px;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .feedback-line.is-error {
+        color: var(--status-error);
+        font-weight: 600;
+      }
+
+      .feedback-line.is-warn {
+        color: var(--status-warn);
+        font-weight: 500;
+      }
+
+      .feedback-line.is-ok {
+        color: var(--status-ok);
+        font-weight: 500;
+      }
+
+      .feedback-icon {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      /* Bit Selector Grid (0 ~ 7) */
+      .bit-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .bit-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+
+      .bit-btn {
+        appearance: none;
+        min-height: 58px;
+        border-radius: var(--radius-control);
+        border: 1.5px solid var(--border-strong);
+        background-color: var(--bg-input);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: 1.375rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out), border-color 140ms var(--ease-out), transform 100ms var(--ease-out);
+      }
+
+      .bit-btn:hover {
+        border-color: var(--accent-cyan);
+        background-color: #1c2426;
+      }
+
+      .bit-btn:active {
+        transform: scale(0.96);
+      }
+
+      .bit-btn:focus-visible {
+        outline: 2px solid var(--accent-cyan);
+        outline-offset: 2px;
+      }
+
+      .bit-btn[aria-pressed="true"] {
+        background-color: var(--accent-cyan);
+        border-color: var(--accent-cyan);
+        color: #121212;
+      }
+
+      /* Result Card */
+      .result-card {
+        appearance: none;
+        width: 100%;
+        min-height: 132px;
+        text-align: center;
+        background-color: var(--bg-card);
+        border: 1.5px solid var(--border-subtle);
+        border-radius: var(--radius-card);
+        padding: 26px 20px 22px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        cursor: default;
+        transition: border-color 160ms var(--ease-out), background-color 160ms var(--ease-out), transform 120ms var(--ease-out);
+      }
+
+      .result-card.has-result {
+        cursor: pointer;
+        border-color: var(--active-accent);
+        background-color: #1f1f1f;
+      }
+
+      .result-card.has-result:hover {
+        background-color: #242424;
+      }
+
+      .result-card.has-result:active {
+        transform: scale(0.985);
+      }
+
+      .result-card:focus-visible {
+        outline: 2px solid var(--active-accent);
+        outline-offset: 3px;
+      }
+
+      .result-caption {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .result-value {
+        font-family: var(--font-mono);
+        font-size: clamp(2.125rem, 8.5vw, 3.25rem);
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.02em;
+        line-height: 1.15;
+        color: var(--text-muted);
+        word-break: break-all;
+      }
+
+      .result-card.has-result .result-value {
+        color: var(--active-accent);
+      }
+
+      .result-copy-cue {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        opacity: 0;
+        transition: opacity 150ms var(--ease-out);
+      }
+
+      .result-card.has-result .result-copy-cue {
+        opacity: 1;
+      }
+
+      .result-breakdown {
+        width: 100%;
+        padding-top: 14px;
+        border-top: 1px solid var(--border-subtle);
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-secondary);
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      .result-breakdown:empty {
+        display: none;
+      }
+
+      /* Original Full-Page PDF Manual Viewer */
+      .pdf-viewer-card {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-card);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .pdf-viewer-card.is-fullscreen {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        border-radius: 0;
+        border: none;
+        padding: 12px;
+        background-color: var(--bg-canvas);
+        height: 100dvh;
+      }
+
+      .pdf-viewer-card.is-fullscreen .pdf-scroll-viewport {
+        flex: 1;
+        height: auto;
+        max-height: none;
+      }
+
+      .pdf-search-nav {
+        background-color: var(--bg-input);
+        border: 1px solid rgba(255, 152, 0, 0.45);
+        border-radius: var(--radius-control);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .pdf-search-nav-meta {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .pdf-search-count {
+        font-size: 0.9375rem;
+        font-weight: 800;
+        color: var(--accent-orange);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .pdf-search-target {
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+      }
+
+      .pdf-search-nav-btns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .pdf-toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .pdf-toolbar-row {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .pdf-page-indicator {
+        min-height: 58px;
+        padding: 0 14px;
+        border-radius: var(--radius-control);
+        background-color: var(--bg-input);
+        border: 1px solid var(--border-subtle);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-mono);
+        font-size: 0.9375rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-primary);
+        white-space: nowrap;
+      }
+
+      .pdf-zoom-group {
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
+        flex: 1;
+      }
+
+      .pdf-zoom-group .btn-control {
+        flex: 1;
+        padding: 0 10px;
+      }
+
+      /* Continuous Scroll PDF Viewport */
+      .pdf-scroll-viewport {
+        width: 100%;
+        height: 70vh;
+        min-height: 440px;
+        max-height: 920px;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        background-color: var(--bg-viewer-well);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-control);
+        padding: 16px 10px 28px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        position: relative;
+      }
+
+      .pdf-pages-container {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .pdf-page-slot {
+        position: relative;
+        background-color: #ffffff;
+        border-radius: 6px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+        overflow: hidden;
+        flex-shrink: 0;
+        transition: box-shadow 180ms var(--ease-out);
+      }
+
+      .pdf-page-slot.is-match-page {
+        box-shadow: 0 0 0 3px var(--accent-orange), 0 10px 28px rgba(0, 0, 0, 0.65);
+      }
+
+      .pdf-page-canvas {
+        display: block;
+      }
+
+      .pdf-highlight-layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .pdf-hl-box {
+        position: absolute;
+        background-color: var(--highlight-fill);
+        border: 2px solid var(--highlight-border);
+        border-radius: 3px;
+        box-shadow: 0 0 6px rgba(255, 152, 0, 0.45);
+      }
+
+      .pdf-page-label {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        background-color: rgba(18, 18, 18, 0.82);
+        color: #f5f5f5;
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        padding: 3px 8px;
+        border-radius: 6px;
+        pointer-events: none;
+      }
+
+      .pdf-page-placeholder {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #202020;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.875rem;
+      }
+
+      .pdf-empty-view {
+        width: 100%;
+        min-height: 280px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 28px 18px;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.9375rem;
+        line-height: 1.6;
+      }
+
+      /* History Panel */
+      .btn-text-danger {
+        appearance: none;
+        min-height: 56px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: color 140ms var(--ease-out), background-color 140ms var(--ease-out);
+      }
+
+      .btn-text-danger:hover {
+        color: var(--status-error);
+        background-color: rgba(255, 107, 107, 0.1);
+      }
+
+      .btn-text-danger[hidden] {
+        display: none;
+      }
+
+      .history-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .history-item-btn {
+        appearance: none;
+        width: 100%;
+        min-height: 58px;
+        padding: 12px 14px;
+        background-color: var(--bg-input);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-control);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out), transform 100ms var(--ease-out);
+      }
+
+      .history-item-btn:hover {
+        border-color: var(--border-strong);
+        background-color: #202020;
+      }
+
+      .history-item-btn:active {
+        transform: scale(0.99);
+      }
+
+      .history-pair {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        flex: 1;
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .history-input {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+
+      .history-arrow {
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+
+      .history-output {
+        font-size: 1.0625rem;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .history-output.is-orange {
+        color: var(--accent-orange);
+      }
+
+      .history-output.is-cyan {
+        color: var(--accent-cyan);
+      }
+
+      .history-meta {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .history-empty {
+        padding: 18px 8px;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.875rem;
+      }
+
+      /* Formula Reference */
+      .reference-card {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-card);
+        padding: 16px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .reference-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+      }
+
+      .reference-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border-subtle);
+      }
+
+      .reference-row:first-child {
+        padding-top: 0;
+        border-top: none;
+      }
+
+      .reference-code {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        color: var(--text-primary);
+        text-align: right;
+      }
+
+      /* Admin Password Modal (No window.prompt) */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 120;
+        background-color: rgba(0, 0, 0, 0.72);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .modal-dialog {
+        width: 100%;
+        max-width: 400px;
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-card);
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65);
+      }
+
+      .modal-title {
+        margin: 0;
+        font-size: 1.0625rem;
+        font-weight: 800;
+        color: var(--text-primary);
+      }
+
+      .modal-desc {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+      }
+
+      .modal-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      /* Toast Notification */
+      .toast {
+        position: fixed;
+        left: 50%;
+        bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+        transform: translate(-50%, 16px);
+        opacity: 0;
+        pointer-events: none;
+        background-color: #f5f5f5;
+        color: #121212;
+        padding: 14px 22px;
+        border-radius: 12px;
+        font-size: 0.9375rem;
+        font-weight: 700;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        max-width: calc(100vw - 32px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        z-index: 140;
+        transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out);
+      }
+
+      .toast.is-visible {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      /* Responsive Desktop Expansion */
+      @media (min-width: 920px) {
+        .app-shell {
+          padding: 22px 28px 44px;
+          gap: 18px;
+        }
+
+        .brand-title {
+          font-size: 1.375rem;
+        }
+
+        .admin-actions-grid {
+          grid-template-columns: 1fr 1fr auto;
+        }
+
+        .manual-list {
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        }
+
+        .calc-grid {
+          grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+          gap: 20px;
+        }
+
+        .pdf-toolbar {
+          flex-direction: row;
+          align-items: stretch;
+          flex-wrap: wrap;
+        }
+
+        .pdf-toolbar-row.is-file-row {
+          flex: 1.3;
+          min-width: 260px;
+        }
+
+        .pdf-toolbar-row.is-ctrl-row {
+          flex: 1.5;
+          justify-content: flex-end;
+        }
+
+        .pdf-zoom-group {
+          flex: initial;
+        }
+
+        .pdf-zoom-group .btn-control {
+          flex: initial;
+          padding: 0 16px;
+        }
+
+        .pdf-scroll-viewport {
+          height: 76vh;
+        }
+      }
+
+      @media (max-width: 390px) {
+        .tab-btn {
+          font-size: 0.875rem;
+          padding: 8px 6px;
+        }
+
+        .field-input {
+          font-size: 1.375rem;
+          padding: 12px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="brand-group">
+          <h1 class="brand-title">SINUMERIK 840D 알람 · PDF 뷰어</h1>
+          <span class="brand-spec">70xxxx ↔ DB2.DBX___._ · 원본 매뉴얼 연동</span>
+        </div>
+        <button
+          id="btnAdminToggle"
+          class="btn-admin-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="adminPanel"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span id="btnAdminToggleText">관리자</span>
+        </button>
+      </header>
+
+      <!-- 관리자 매뉴얼 관리 패널 (비밀번호 인증 후에만 표시) -->
+      <section id="adminPanel" class="admin-panel hidden" aria-labelledby="adminPanelTitle">
+        <div class="admin-header">
+          <div>
+            <h2 id="adminPanelTitle" class="admin-title">관리자 매뉴얼 관리 패널</h2>
+            <span id="adminCatalogSummary" class="admin-subtitle">등록된 매뉴얼 0개</span>
+          </div>
+          <button id="btnAdminExit" class="btn-control" type="button">
+            관리자 종료
+          </button>
+        </div>
+
+        <div class="admin-actions-grid">
+          <input
+            id="pdfFileInput"
+            type="file"
+            accept=".pdf,application/pdf"
+            multiple
+            class="hidden"
+          />
+          <button id="btnUploadPdf" class="btn-control btn-accent-solid" type="button">
+            PDF 매뉴얼 추가 등록 (다중 선택)
+          </button>
+          <button id="btnDownloadIndex" class="btn-control btn-accent-outline" type="button">
+            원격 서버 배포용 manual_index.json 다운로드
+          </button>
+          <button id="btnClearLocalManuals" class="btn-control btn-danger-outline" type="button">
+            전체 초기화
+          </button>
+        </div>
+
+        <div id="pdfProgressWrap" class="progress-wrap hidden" aria-live="polite">
+          <div class="progress-header">
+            <span id="pdfProgressStatus" class="progress-filename">PDF 처리 준비 중...</span>
+            <span id="pdfProgressPct" class="progress-pct">0%</span>
+          </div>
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="pdfProgressBar">
+            <div id="pdfProgressFill" class="progress-fill"></div>
+          </div>
+        </div>
+
+        <ul id="adminManualList" class="manual-list"></ul>
+        <p class="admin-deploy-note">
+          배포 방법: 다운로드한 <code>manual_index.json</code>을 HTML과 같은 위치에 올리고, 원본 PDF 파일들을 <code>./manuals/</code> 폴더에 업로드하면 모든 팀원 화면에 자동 반영됩니다.
+        </p>
+      </section>
+
+      <!-- 상단 모드 전환 탭 -->
+      <div class="mode-tabs" role="tablist" aria-label="변환 모드 선택">
+        <button
+          id="tabAlarmToDb2"
+          class="tab-btn"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panelAlarmToDb2"
+        >
+          알람번호 → DB2 어드레스
+        </button>
+        <button
+          id="tabDb2ToAlarm"
+          class="tab-btn"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panelDb2ToAlarm"
+        >
+          DB2 어드레스 → 알람번호
+        </button>
+      </div>
+
+      <!-- 계산기 + 최근 조회 기록 -->
+      <div class="calc-grid">
+        <div class="calc-primary">
+          <!-- 탭 1: 알람번호 -> DB2 어드레스 -->
+          <section
+            id="panelAlarmToDb2"
+            class="panel"
+            role="tabpanel"
+            aria-labelledby="tabAlarmToDb2"
+          >
+            <div class="panel-header">
+              <label class="panel-label" for="alarmInput">PLC 알람 번호 (6자리)</label>
+              <span class="panel-hint" id="alarmCounter">0 / 6</span>
+            </div>
+
+            <div class="input-row">
+              <input
+                id="alarmInput"
+                class="field-input"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="6"
+                placeholder="예: 700123"
+                autocomplete="off"
+                spellcheck="false"
+                aria-describedby="alarmFeedback"
+              />
+              <button
+                id="btnClearAlarm"
+                class="btn-control"
+                type="button"
+                aria-label="알람 번호 초기화"
+              >
+                초기화(C)
+              </button>
+            </div>
+
+            <div class="helper-actions">
+              <button
+                id="btnPrefix70"
+                class="btn-control btn-accent-outline"
+                type="button"
+              >
+                70 자동입력
+              </button>
+              <button
+                id="btnBackspaceAlarm"
+                class="btn-control"
+                type="button"
+                aria-label="한 글자 지우기"
+              >
+                ⌫ 지움
+              </button>
+            </div>
+
+            <div id="alarmFeedback" class="feedback-line" aria-live="polite">
+              70으로 시작하는 6자리 알람 번호를 입력하세요.
+            </div>
+          </section>
+
+          <!-- 탭 2: DB2 어드레스 -> 알람번호 -->
+          <section
+            id="panelDb2ToAlarm"
+            class="panel hidden"
+            role="tabpanel"
+            aria-labelledby="tabDb2ToAlarm"
+          >
+            <div class="panel-header">
+              <label class="panel-label" for="byteInput">DB2 바이트 번호 (180 이상)</label>
+              <span class="panel-hint">DB2.DBX___._</span>
+            </div>
+
+            <div class="input-row">
+              <input
+                id="byteInput"
+                class="field-input"
+                type="number"
+                min="180"
+                inputmode="numeric"
+                placeholder="예: 190"
+                autocomplete="off"
+                aria-describedby="db2Feedback"
+              />
+              <button
+                id="btnClearDb2"
+                class="btn-control"
+                type="button"
+                aria-label="DB2 입력 초기화"
+              >
+                초기화(C)
+              </button>
+            </div>
+
+            <div class="bit-section">
+              <div class="panel-header">
+                <span class="panel-label">비트 선택 (0 ~ 7)</span>
+                <span class="panel-hint" id="selectedBitHint">미선택</span>
+              </div>
+              <div class="bit-grid" id="bitGrid" role="group" aria-label="DB2 비트 선택">
+                <button type="button" class="bit-btn" data-bit="0" aria-pressed="false">.0</button>
+                <button type="button" class="bit-btn" data-bit="1" aria-pressed="false">.1</button>
+                <button type="button" class="bit-btn" data-bit="2" aria-pressed="false">.2</button>
+                <button type="button" class="bit-btn" data-bit="3" aria-pressed="false">.3</button>
+                <button type="button" class="bit-btn" data-bit="4" aria-pressed="false">.4</button>
+                <button type="button" class="bit-btn" data-bit="5" aria-pressed="false">.5</button>
+                <button type="button" class="bit-btn" data-bit="6" aria-pressed="false">.6</button>
+                <button type="button" class="bit-btn" data-bit="7" aria-pressed="false">.7</button>
+              </div>
+            </div>
+
+            <div id="db2Feedback" class="feedback-line" aria-live="polite">
+              180 이상의 바이트 번호를 입력하고 비트를 선택하세요.
+            </div>
+          </section>
+
+          <!-- 변환 결과 카드 (터치 시 복사 + 매뉴얼 페이지 이동) -->
+          <button
+            id="resultCard"
+            class="result-card"
+            type="button"
+            aria-label="변환 결과 카드 (결과가 있을 때 터치하여 복사)"
+          >
+            <div class="result-caption">
+              <span id="resultLabel">DB2 비트 어드레스</span>
+            </div>
+            <div id="resultValue" class="result-value">DB2.DBX---.-</div>
+            <div id="resultCopyCue" class="result-copy-cue" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>터치하여 복사 (하단 PDF 매뉴얼 자동 이동)</span>
+            </div>
+            <div id="resultBreakdown" class="result-breakdown"></div>
+          </button>
+        </div>
+
+        <aside class="calc-secondary">
+          <section class="panel" aria-labelledby="historyHeading">
+            <div class="panel-header">
+              <h2 id="historyHeading" class="panel-label">최근 조회 기록 (최대 5개)</h2>
+              <button id="btnClearHistory" class="btn-text-danger" type="button" hidden>
+                기록 삭제
+              </button>
+            </div>
+            <ul id="historyList" class="history-list"></ul>
+            <div id="historyEmpty" class="history-empty">
+              변환 완료된 최근 조회 내역이 여기에 저장됩니다.
+            </div>
+          </section>
+
+          <section class="reference-card" aria-labelledby="formulaHeading">
+            <h2 id="formulaHeading" class="panel-label">SINUMERIK 840D DB2 기준</h2>
+            <div class="reference-grid">
+              <div class="reference-row">
+                <span>시작 오프셋 (700000)</span>
+                <span class="reference-code">DB2.DBX180.0</span>
+              </div>
+              <div class="reference-row">
+                <span>중간 2자리 (100단위)</span>
+                <span class="reference-code">+ 8 Bytes</span>
+              </div>
+              <div class="reference-row">
+                <span>끝 2자리 (00~63)</span>
+                <span class="reference-code">÷ 8 (몫=Byte, 나머지=Bit)</span>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <!-- 원본 PDF 전체 페이지 연속 스크롤 뷰어 -->
+      <section id="pdfViewerCard" class="pdf-viewer-card" aria-labelledby="viewerHeading">
+        <div class="panel-header">
+          <h2 id="viewerHeading" class="panel-label">원본 PDF 매뉴얼 뷰어</h2>
+          <span id="viewerSourceHint" class="panel-hint">매뉴얼 불러오는 중...</span>
+        </div>
+
+        <!-- 수동 키워드 / 알람코드 / DB2 어드레스 검색창 -->
+        <div class="input-row">
+          <input
+            id="manualKeywordInput"
+            class="field-input is-text-search"
+            type="search"
+            placeholder="매뉴얼 직접 검색 (예: 유압, 클램프, 700123, DB2.DBX190.7)"
+            autocomplete="off"
+            aria-label="매뉴얼 직접 검색"
+          />
+          <button id="btnClearKeyword" class="btn-control hidden" type="button">
+            지우기
+          </button>
+          <button id="btnManualSearch" class="btn-control btn-accent-solid" type="button">
+            검색
+          </button>
+        </div>
+
+        <!-- 다중 매칭 네비게이션 바 -->
+        <div id="pdfSearchNav" class="pdf-search-nav hidden" aria-live="polite">
+          <div class="pdf-search-nav-meta">
+            <span id="pdfSearchCount" class="pdf-search-count">검색 결과 0 / 0건</span>
+            <span id="pdfSearchTarget" class="pdf-search-target"></span>
+          </div>
+          <div class="pdf-search-nav-btns">
+            <button id="btnPrevMatch" class="btn-control" type="button">
+              ◀ 이전 결과
+            </button>
+            <button id="btnNextMatch" class="btn-control btn-accent-outline" type="button">
+              다음 결과 ▶
+            </button>
+          </div>
+        </div>
+
+        <!-- 뷰어 상단 툴바 -->
+        <div class="pdf-toolbar">
+          <div class="pdf-toolbar-row is-file-row">
+            <select
+              id="pdfFileSelect"
+              class="field-select"
+              aria-label="열람할 PDF 매뉴얼 파일 선택"
+              disabled
+            >
+              <option value="">등록된 PDF 매뉴얼 없음</option>
+            </select>
+            <div id="pdfPageIndicator" class="pdf-page-indicator" aria-live="polite">
+              0 / 0 p
+            </div>
+          </div>
+
+          <div class="pdf-toolbar-row is-ctrl-row">
+            <div class="pdf-zoom-group" role="group" aria-label="PDF 확대 및 축소">
+              <button id="btnZoomOut" class="btn-control" type="button" aria-label="축소">
+                −
+              </button>
+              <button id="btnZoomFit" class="btn-control" type="button">
+                화면맞춤
+              </button>
+              <button id="btnZoomIn" class="btn-control" type="button" aria-label="확대">
+                +
+              </button>
+            </div>
+            <button id="btnToggleFullscreen" class="btn-control btn-accent-outline" type="button">
+              전체화면 확대보기
+            </button>
+          </div>
+        </div>
+
+        <!-- 연속 스크롤 PDF 캔버스 컨테이너 -->
+        <div id="pdfScrollViewport" class="pdf-scroll-viewport" tabindex="0" aria-label="원본 PDF 페이지 영역">
+          <div id="pdfPagesContainer" class="pdf-pages-container"></div>
+          <div id="pdfEmptyView" class="pdf-empty-view">
+            <span>등록된 PDF 매뉴얼이 없습니다.</span>
+            <span>서버에 <code>manual_index.json</code>과 원본 PDF를 배포하거나 우측 상단 [관리자]에서 PDF를 등록하세요.</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 관리자 비밀번호 인증 모달 -->
+    <div id="adminModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+      <form id="adminAuthForm" class="modal-dialog">
+        <h2 id="adminModalTitle" class="modal-title">관리자 모드 인증</h2>
+        <p class="modal-desc">매뉴얼 업로드·삭제 및 배포용 인덱스 생성을 위해 비밀번호를 입력하세요.</p>
+        <input
+          id="adminPwInput"
+          class="field-input"
+          type="password"
+          inputmode="numeric"
+          placeholder="비밀번호 입력"
+          autocomplete="off"
+        />
+        <div id="adminAuthError" class="feedback-line is-error hidden" aria-live="polite"></div>
+        <div class="modal-actions">
+          <button id="btnAdminCancel" class="btn-control" type="button">취소</button>
+          <button id="btnAdminSubmit" class="btn-control btn-accent-solid" type="submit">확인</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 토스트 알림 -->
+    <div id="toast" class="toast" role="status" aria-live="polite">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      <span id="toastText">복사되었습니다</span>
+    </div>
+
+    <script>
+      // =========================================================================
+      // [설정 상수 영역] 관리자가 서버 배포 환경에 맞게 손쉽게 수정 가능
+      // =========================================================================
+      const REMOTE_INDEX_URL = "./manual_index.json"; // 원격 서버 또는 GitHub Raw 인덱스 JSON 주소
+      const REMOTE_PDF_BASE_URL = "./manuals/";       // 원본 PDF 파일들이 저장된 서버 폴더 경로
+      const ADMIN_PW = "7090";                        // 관리자 모드 진입 비밀번호
+
+      // =========================================================================
+      // [필수 적용 JavaScript 핵심 계산 함수 - 수정 없이 그대로 사용]
+      // =========================================================================
+      function alarmToDb2(alarmStr) {
+        if (!/^70\d{4}$/.test(alarmStr)) return null;
+        const mid = parseInt(alarmStr.slice(2, 4), 10);
+        const end = parseInt(alarmStr.slice(4, 6), 10);
+        const totalByte = 180 + (mid * 8) + Math.floor(end / 8);
+        const bit = end % 8;
+        return {
+          address: `DB2.DBX${totalByte}.${bit}`,
+          breakdown: `180 + (${String(mid).padStart(2,'0')}×8=${mid * 8}) + (${String(end).padStart(2,'0')}÷8=몫 ${Math.floor(end / 8)}, 나머지 ${bit})`
+        };
+      }
+
+      function db2ToAlarm(byteNum, bitNum) {
+        if (isNaN(byteNum) || isNaN(bitNum) || byteNum < 180 || bitNum < 0 || bitNum > 7) return null;
+        const diff = byteNum - 180;
+        const mid = String(Math.floor(diff / 8)).padStart(2, '0');
+        const end = String((diff % 8) * 8 + bitNum).padStart(2, '0');
+        return `70${mid}${end}`;
+      }
+
+      // =========================================================================
+      // 메인 애플리케이션 컨트롤러
+      // =========================================================================
+      (function () {
+        const HISTORY_STORAGE_KEY = 'sinumerik840d_db2_history_v1';
+        const MAX_HISTORY = 5;
+        const IDB_NAME = 'Sinumerik840DPdfViewerDB';
+        const IDB_VERSION = 1;
+        const IDB_STORE = 'localManuals'; // keyPath: 'fileName', stores ArrayBuffer + pages text
+
+        if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        const state = {
+          mode: 'alarmToDb2',
+          selectedBit: null,
+          currentCopyText: '',
+          currentConversion: null, // { alarmStr, db2Address, shortDb2 }
+          history: [],
+          isAdmin: false,
+          isParsingPdf: false,
+          localManuals: [],   // IndexedDB records ({ fileName, pageCount, savedAt, pages, pdfData })
+          remoteManuals: [],  // Fetched from REMOTE_INDEX_URL ({ fileName, pageCount, pages })
+          catalog: [],        // Merged manuals (local overrides remote with same fileName)
+          activeFileName: '',
+          activePdfDoc: null,
+          activePageCount: 0,
+          currentVisiblePage: 1,
+          zoomMode: 'fit',    // 'fit' | 'custom'
+          zoomScale: 1.0,
+          basePageWidth: 595,
+          basePageHeight: 842,
+          renderGeneration: 0,
+          renderedPages: new Set(),
+          renderingPages: new Set(),
+          activeHighlights: [], // keywords currently highlighted on canvas
+          searchMatches: [],    // [{ fileName, pageNum, matchedTerms }]
+          currentMatchIdx: -1,
+          isFullscreen: false
+        };
+
+        // Caches
+        const pdfDocCache = new Map();       // fileName -> PDFDocumentProxy
+        const pageTextCache = new Map();     // `${fileName}::${pageNum}` -> PDF.js textContent
+        let pageObserver = null;
+        let scrollRafId = null;
+        let toastTimer = null;
+        let db2HistoryTimer = null;
+
+        // DOM Elements - Header & Admin
+        const btnAdminToggle = document.getElementById('btnAdminToggle');
+        const btnAdminToggleText = document.getElementById('btnAdminToggleText');
+        const adminPanel = document.getElementById('adminPanel');
+        const adminCatalogSummary = document.getElementById('adminCatalogSummary');
+        const btnAdminExit = document.getElementById('btnAdminExit');
+        const pdfFileInput = document.getElementById('pdfFileInput');
+        const btnUploadPdf = document.getElementById('btnUploadPdf');
+        const btnDownloadIndex = document.getElementById('btnDownloadIndex');
+        const btnClearLocalManuals = document.getElementById('btnClearLocalManuals');
+        const pdfProgressWrap = document.getElementById('pdfProgressWrap');
+        const pdfProgressStatus = document.getElementById('pdfProgressStatus');
+        const pdfProgressPct = document.getElementById('pdfProgressPct');
+        const pdfProgressBar = document.getElementById('pdfProgressBar');
+        const pdfProgressFill = document.getElementById('pdfProgressFill');
+        const adminManualList = document.getElementById('adminManualList');
+
+        // DOM Elements - Admin Auth Modal
+        const adminModal = document.getElementById('adminModal');
+        const adminAuthForm = document.getElementById('adminAuthForm');
+        const adminPwInput = document.getElementById('adminPwInput');
+        const adminAuthError = document.getElementById('adminAuthError');
+        const btnAdminCancel = document.getElementById('btnAdminCancel');
+
+        // DOM Elements - Calculator
+        const tabAlarmToDb2 = document.getElementById('tabAlarmToDb2');
+        const tabDb2ToAlarm = document.getElementById('tabDb2ToAlarm');
+        const panelAlarmToDb2 = document.getElementById('panelAlarmToDb2');
+        const panelDb2ToAlarm = document.getElementById('panelDb2ToAlarm');
+        const alarmInput = document.getElementById('alarmInput');
+        const alarmCounter = document.getElementById('alarmCounter');
+        const alarmFeedback = document.getElementById('alarmFeedback');
+        const btnClearAlarm = document.getElementById('btnClearAlarm');
+        const btnPrefix70 = document.getElementById('btnPrefix70');
+        const btnBackspaceAlarm = document.getElementById('btnBackspaceAlarm');
+        const byteInput = document.getElementById('byteInput');
+        const btnClearDb2 = document.getElementById('btnClearDb2');
+        const bitGrid = document.getElementById('bitGrid');
+        const bitButtons = Array.from(bitGrid.querySelectorAll('.bit-btn'));
+        const selectedBitHint = document.getElementById('selectedBitHint');
+        const db2Feedback = document.getElementById('db2Feedback');
+        const resultCard = document.getElementById('resultCard');
+        const resultLabel = document.getElementById('resultLabel');
+        const resultValue = document.getElementById('resultValue');
+        const resultBreakdown = document.getElementById('resultBreakdown');
+
+        // DOM Elements - History
+        const historyList = document.getElementById('historyList');
+        const historyEmpty = document.getElementById('historyEmpty');
+        const btnClearHistory = document.getElementById('btnClearHistory');
+
+        // DOM Elements - PDF Viewer
+        const pdfViewerCard = document.getElementById('pdfViewerCard');
+        const viewerSourceHint = document.getElementById('viewerSourceHint');
+        const manualKeywordInput = document.getElementById('manualKeywordInput');
+        const btnClearKeyword = document.getElementById('btnClearKeyword');
+        const btnManualSearch = document.getElementById('btnManualSearch');
+        const pdfSearchNav = document.getElementById('pdfSearchNav');
+        const pdfSearchCount = document.getElementById('pdfSearchCount');
+        const pdfSearchTarget = document.getElementById('pdfSearchTarget');
+        const btnPrevMatch = document.getElementById('btnPrevMatch');
+        const btnNextMatch = document.getElementById('btnNextMatch');
+        const pdfFileSelect = document.getElementById('pdfFileSelect');
+        const pdfPageIndicator = document.getElementById('pdfPageIndicator');
+        const btnZoomOut = document.getElementById('btnZoomOut');
+        const btnZoomFit = document.getElementById('btnZoomFit');
+        const btnZoomIn = document.getElementById('btnZoomIn');
+        const btnToggleFullscreen = document.getElementById('btnToggleFullscreen');
+        const pdfScrollViewport = document.getElementById('pdfScrollViewport');
+        const pdfPagesContainer = document.getElementById('pdfPagesContainer');
+        const pdfEmptyView = document.getElementById('pdfEmptyView');
+
+        // Toast
+        const toast = document.getElementById('toast');
+        const toastText = document.getElementById('toastText');
+
+        const ICON_WARN =
+          '<svg class="feedback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+        const ICON_OK =
+          '<svg class="feedback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+        // --- Utilities ---
+        function escapeHtml(str) {
+          return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        }
+
+        function escapeRegExp(str) {
+          return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function setFeedback(el, type, message) {
+          el.className = 'feedback-line' + (type ? ' is-' + type : '');
+          if (type === 'error' || type === 'warn') {
+            el.innerHTML = ICON_WARN + '<span>' + escapeHtml(message) + '</span>';
+          } else if (type === 'ok') {
+            el.innerHTML = ICON_OK + '<span>' + escapeHtml(message) + '</span>';
+          } else {
+            el.textContent = message;
+          }
+        }
+
+        function showToast(message) {
+          toastText.textContent = message;
+          toast.classList.add('is-visible');
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(function () {
+            toast.classList.remove('is-visible');
+          }, 2200);
+        }
+
+        // --- IndexedDB (Stores PDF ArrayBuffer + Extracted Page Text) ---
+        function openDb() {
+          return new Promise(function (resolve, reject) {
+            if (!window.indexedDB) {
+              reject(new Error('IndexedDB 미지원 브라우저'));
+              return;
+            }
+            const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+            req.onupgradeneeded = function (event) {
+              const db = event.target.result;
+              if (!db.objectStoreNames.contains(IDB_STORE)) {
+                db.createObjectStore(IDB_STORE, { keyPath: 'fileName' });
+              }
+            };
+            req.onsuccess = function () {
+              resolve(req.result);
+            };
+            req.onerror = function () {
+              reject(req.error || new Error('IndexedDB 열기 실패'));
+            };
+          });
+        }
+
+        function saveLocalManualToDb(record) {
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              const tx = db.transaction(IDB_STORE, 'readwrite');
+              tx.objectStore(IDB_STORE).put(record);
+              tx.oncomplete = function () {
+                db.close();
+                resolve();
+              };
+              tx.onerror = function () {
+                db.close();
+                reject(tx.error || new Error('로컬 저장 실패'));
+              };
+            });
+          });
+        }
+
+        function loadLocalManualsFromDb() {
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              const tx = db.transaction(IDB_STORE, 'readonly');
+              const req = tx.objectStore(IDB_STORE).getAll();
+              req.onsuccess = function () {
+                db.close();
+                const list = Array.isArray(req.result) ? req.result : [];
+                list.sort(function (a, b) {
+                  return (b.savedAt || 0) - (a.savedAt || 0);
+                });
+                resolve(list);
+              };
+              req.onerror = function () {
+                db.close();
+                reject(req.error || new Error('로컬 목록 불러오기 실패'));
+              };
+            });
+          });
+        }
+
+        function deleteLocalManualFromDb(fileName) {
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              const tx = db.transaction(IDB_STORE, 'readwrite');
+              tx.objectStore(IDB_STORE).delete(fileName);
+              tx.oncomplete = function () {
+                db.close();
+                resolve();
+              };
+              tx.onerror = function () {
+                db.close();
+                reject(tx.error || new Error('로컬 삭제 실패'));
+              };
+            });
+          });
+        }
+
+        function clearLocalManualsInDb() {
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              const tx = db.transaction(IDB_STORE, 'readwrite');
+              tx.objectStore(IDB_STORE).clear();
+              tx.oncomplete = function () {
+                db.close();
+                resolve();
+              };
+              tx.onerror = function () {
+                db.close();
+                reject(tx.error || new Error('전체 초기화 실패'));
+              };
+            });
+          });
+        }
+
+        // --- Remote Index Fetch & Catalog Merge ---
+        async function fetchRemoteIndex() {
+          try {
+            const sep = REMOTE_INDEX_URL.indexOf('?') === -1 ? '?' : '&';
+            const url = REMOTE_INDEX_URL + sep + 't=' + Date.now();
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!response.ok) return [];
+            const data = await response.json();
+            const rawList = Array.isArray(data)
+              ? data
+              : data && Array.isArray(data.manuals)
+              ? data.manuals
+              : [];
+
+            return rawList
+              .filter(function (item) {
+                return item && typeof item.fileName === 'string' && Array.isArray(item.pages);
+              })
+              .map(function (item) {
+                return {
+                  fileName: item.fileName,
+                  pageCount: item.pageCount || item.pages.length,
+                  pages: item.pages,
+                  source: 'remote',
+                  remoteUrl: REMOTE_PDF_BASE_URL + encodeURIComponent(item.fileName)
+                };
+              });
+          } catch (_) {
+            // 로컬 단독 실행 또는 원격 파일 미배포 환경에서는 조용히 패스
+            return [];
+          }
+        }
+
+        function rebuildCatalog() {
+          const map = new Map();
+
+          // 1) 원격 인덱스 먼저 반영
+          state.remoteManuals.forEach(function (rm) {
+            map.set(rm.fileName, rm);
+          });
+
+          // 2) IndexedDB 로컬 PDF(ArrayBuffer 포함)가 있으면 최우선 덮어쓰기 (오프라인/로컬 테스트 우선)
+          state.localManuals.forEach(function (lm) {
+            map.set(lm.fileName, {
+              fileName: lm.fileName,
+              pageCount: lm.pageCount || (lm.pages ? lm.pages.length : 0),
+              pages: lm.pages || [],
+              pdfData: lm.pdfData || null,
+              savedAt: lm.savedAt || 0,
+              source: 'local',
+              remoteUrl: REMOTE_PDF_BASE_URL + encodeURIComponent(lm.fileName)
+            });
+          });
+
+          state.catalog = Array.from(map.values());
+          renderCatalogUI();
+        }
+
+        function getCatalogEntry(fileName) {
+          return (
+            state.catalog.find(function (m) {
+              return m.fileName === fileName;
+            }) || null
+          );
+        }
+
+        function renderCatalogUI() {
+          // 1) 뷰어 파일 선택 드롭다운 갱신
+          const prevSelected = state.activeFileName;
+          pdfFileSelect.innerHTML = '';
+
+          if (state.catalog.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '등록된 PDF 매뉴얼 없음';
+            pdfFileSelect.appendChild(opt);
+            pdfFileSelect.disabled = true;
+            viewerSourceHint.textContent = '매뉴얼 미등록';
+            pdfPageIndicator.textContent = '0 / 0 p';
+            pdfPagesContainer.innerHTML = '';
+            pdfEmptyView.classList.remove('hidden');
+            state.activeFileName = '';
+            state.activePdfDoc = null;
+          } else {
+            pdfFileSelect.disabled = false;
+            let totalPages = 0;
+            state.catalog.forEach(function (m) {
+              totalPages += m.pageCount || 0;
+              const opt = document.createElement('option');
+              opt.value = m.fileName;
+              opt.textContent = m.fileName + ' (' + m.pageCount + 'p)';
+              pdfFileSelect.appendChild(opt);
+            });
+
+            viewerSourceHint.textContent =
+              state.catalog.length + '개 PDF · 총 ' + totalPages + 'p';
+
+            if (prevSelected && getCatalogEntry(prevSelected)) {
+              pdfFileSelect.value = prevSelected;
+            } else {
+              pdfFileSelect.value = state.catalog[0].fileName;
+            }
+          }
+
+          // 2) 관리자 패널 목록 갱신
+          renderAdminManualList();
+        }
+
+        function renderAdminManualList() {
+          adminManualList.innerHTML = '';
+          let totalPages = 0;
+          state.catalog.forEach(function (m) {
+            totalPages += m.pageCount || 0;
+          });
+
+          adminCatalogSummary.textContent =
+            '전체 ' +
+            state.catalog.length +
+            '개 파일 (' +
+            totalPages +
+            'p) · 로컬 저장 ' +
+            state.localManuals.length +
+            '개';
+
+          btnDownloadIndex.disabled = state.catalog.length === 0;
+          btnClearLocalManuals.disabled = state.localManuals.length === 0;
+
+          if (state.catalog.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'admin-subtitle';
+            li.textContent = '등록된 PDF가 없습니다. 위 버튼을 눌러 PLC 매뉴얼 PDF를 업로드하세요.';
+            adminManualList.appendChild(li);
+            return;
+          }
+
+          state.catalog.forEach(function (manual) {
+            const li = document.createElement('li');
+            li.className = 'manual-file-card';
+
+            const info = document.createElement('div');
+            info.className = 'manual-file-info';
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'manual-file-name';
+            nameEl.textContent = manual.fileName;
+            nameEl.title = manual.fileName;
+
+            const metaEl = document.createElement('span');
+            metaEl.className = 'manual-file-meta';
+            metaEl.textContent =
+              manual.pageCount +
+              'p · ' +
+              (manual.source === 'local' ? '로컬 IndexedDB' : '원격 서버 인덱스');
+
+            info.appendChild(nameEl);
+            info.appendChild(metaEl);
+
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'btn-remove-file';
+            delBtn.textContent = 'X';
+
+            if (manual.source === 'local') {
+              delBtn.setAttribute('aria-label', manual.fileName + ' 로컬 삭제');
+              delBtn.addEventListener('click', function () {
+                handleDeleteLocalManual(manual.fileName);
+              });
+            } else {
+              delBtn.disabled = true;
+              delBtn.title = '원격 서버 파일은 서버의 manual_index.json에서 제거하세요';
+            }
+
+            li.appendChild(info);
+            li.appendChild(delBtn);
+            adminManualList.appendChild(li);
+          });
+        }
+
+        // --- Admin Authentication ---
+        function setAdminMode(enabled) {
+          state.isAdmin = enabled;
+          adminPanel.classList.toggle('hidden', !enabled);
+          btnAdminToggle.classList.toggle('is-active', enabled);
+          btnAdminToggle.setAttribute('aria-expanded', String(enabled));
+          btnAdminToggleText.textContent = enabled ? '관리자 활성' : '관리자';
+        }
+
+        function openAdminModal() {
+          adminPwInput.value = '';
+          adminAuthError.classList.add('hidden');
+          adminAuthError.textContent = '';
+          adminModal.classList.remove('hidden');
+          setTimeout(function () {
+            adminPwInput.focus();
+          }, 30);
+        }
+
+        function closeAdminModal() {
+          adminModal.classList.add('hidden');
+          adminPwInput.value = '';
+        }
+
+        // --- Admin PDF Extraction & Index JSON Export ---
+        function updatePdfProgress(visible, pct, statusText) {
+          pdfProgressWrap.classList.toggle('hidden', !visible);
+          if (visible) {
+            const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+            pdfProgressPct.textContent = clamped + '%';
+            pdfProgressStatus.textContent = statusText;
+            pdfProgressFill.style.width = clamped + '%';
+            pdfProgressBar.setAttribute('aria-valuenow', String(clamped));
+          }
+        }
+
+        function assemblePageText(textContent) {
+          const items = textContent.items || [];
+          const lines = [];
+          let currentLine = '';
+          let lastY = null;
+
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (!item || typeof item.str !== 'string') continue;
+            const y = item.transform ? item.transform[5] : null;
+
+            if (lastY !== null && y !== null && Math.abs(y - lastY) > 4) {
+              if (currentLine.trim()) lines.push(currentLine.trim());
+              currentLine = item.str;
+            } else {
+              if (
+                currentLine.length > 0 &&
+                !currentLine.endsWith(' ') &&
+                !item.str.startsWith(' ') &&
+                item.str.length > 0
+              ) {
+                currentLine += ' ';
+              }
+              currentLine += item.str;
+            }
+
+            if (item.hasEOL) {
+              if (currentLine.trim()) lines.push(currentLine.trim());
+              currentLine = '';
+              lastY = null;
+            } else if (y !== null) {
+              lastY = y;
+            }
+          }
+
+          if (currentLine.trim()) lines.push(currentLine.trim());
+          return lines.join('\n').replace(/[ \t]{2,}/g, ' ').trim();
+        }
+
+        async function handleAdminUploadFiles(fileList) {
+          const files = Array.from(fileList || []).filter(function (f) {
+            return f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+          });
+          if (files.length === 0) return;
+
+          if (!window.pdfjsLib) {
+            showToast('PDF.js 라이브러리를 불러올 수 없습니다');
+            return;
+          }
+
+          state.isParsingPdf = true;
+          btnUploadPdf.disabled = true;
+          btnDownloadIndex.disabled = true;
+          btnClearLocalManuals.disabled = true;
+
+          let successCount = 0;
+          let failedCount = 0;
+          let lastUploadedFileName = '';
+
+          try {
+            const totalFiles = files.length;
+
+            for (let fIdx = 0; fIdx < totalFiles; fIdx++) {
+              const file = files[fIdx];
+              const basePct = (fIdx / totalFiles) * 100;
+              const spanPct = 100 / totalFiles;
+
+              updatePdfProgress(
+                true,
+                basePct + spanPct * 0.04,
+                '[' + (fIdx + 1) + '/' + totalFiles + '] ' + file.name + ' 읽는 중...'
+              );
+
+              try {
+                const rawBuffer = await file.arrayBuffer();
+                // PDF.js 워커가 ArrayBuffer를 detach하지 않도록 복사본으로 파싱
+                const parseCopy = rawBuffer.slice(0);
+                const pdf = await window.pdfjsLib.getDocument({ data: parseCopy }).promise;
+                const totalPages = pdf.numPages;
+                const pages = [];
+
+                for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                  const page = await pdf.getPage(pageNum);
+                  const textContent = await page.getTextContent();
+                  pages.push({ pageNum: pageNum, text: assemblePageText(textContent) });
+
+                  const filePct = 0.08 + (pageNum / totalPages) * 0.86;
+                  updatePdfProgress(
+                    true,
+                    basePct + spanPct * filePct,
+                    '[' +
+                      (fIdx + 1) +
+                      '/' +
+                      totalFiles +
+                      '] ' +
+                      file.name +
+                      ' (' +
+                      pageNum +
+                      '/' +
+                      totalPages +
+                      'p)'
+                  );
+
+                  if (pageNum % 5 === 0) {
+                    await new Promise(function (resolve) {
+                      setTimeout(resolve, 0);
+                    });
+                  }
+                }
+
+                updatePdfProgress(
+                  true,
+                  basePct + spanPct * 0.96,
+                  '[' + (fIdx + 1) + '/' + totalFiles + '] IndexedDB 저장 중...'
+                );
+
+                const record = {
+                  fileName: file.name,
+                  pageCount: totalPages,
+                  savedAt: Date.now(),
+                  pages: pages,
+                  pdfData: rawBuffer
+                };
+
+                await saveLocalManualToDb(record);
+
+                // 이전 캐시 제거 후 새 PDF 문서 반영
+                pdfDocCache.delete(file.name);
+                clearPageTextCacheForFile(file.name);
+
+                const existIdx = state.localManuals.findIndex(function (m) {
+                  return m.fileName === record.fileName;
+                });
+                if (existIdx !== -1) {
+                  state.localManuals[existIdx] = record;
+                } else {
+                  state.localManuals.unshift(record);
+                }
+
+                lastUploadedFileName = record.fileName;
+                successCount++;
+                rebuildCatalog();
+              } catch (err) {
+                console.error('PDF upload error:', file.name, err);
+                failedCount++;
+              }
+            }
+
+            updatePdfProgress(true, 100, 'PDF 등록 완료');
+            setTimeout(function () {
+              updatePdfProgress(false, 0, '');
+            }, 900);
+
+            if (failedCount > 0 && successCount === 0) {
+              showToast('PDF 분석 실패: 손상되거나 암호화된 파일인지 확인하세요');
+            } else if (failedCount > 0) {
+              showToast(successCount + '개 등록 완료 · ' + failedCount + '개 실패');
+            } else {
+              showToast(successCount + '개 PDF 매뉴얼 저장 완료');
+            }
+
+            if (lastUploadedFileName) {
+              await openPdfInViewer(lastUploadedFileName, 1, false);
+              if (state.currentConversion || manualKeywordInput.value.trim()) {
+                runActiveSearch(false);
+              }
+            }
+          } finally {
+            state.isParsingPdf = false;
+            btnUploadPdf.disabled = false;
+            renderAdminManualList();
+          }
+        }
+
+        async function handleDeleteLocalManual(fileName) {
+          if (state.isParsingPdf) return;
+          try {
+            await deleteLocalManualFromDb(fileName);
+            state.localManuals = state.localManuals.filter(function (m) {
+              return m.fileName !== fileName;
+            });
+            pdfDocCache.delete(fileName);
+            clearPageTextCacheForFile(fileName);
+            rebuildCatalog();
+            showToast('삭제 완료: ' + fileName);
+
+            if (state.catalog.length > 0 && !getCatalogEntry(state.activeFileName)) {
+              await openPdfInViewer(state.catalog[0].fileName, 1, false);
+            }
+            if (state.currentConversion || manualKeywordInput.value.trim()) {
+              runActiveSearch(false);
+            }
+          } catch (err) {
+            console.error(err);
+            showToast('매뉴얼 삭제에 실패했습니다');
+          }
+        }
+
+        async function handleClearAllLocalManuals() {
+          if (state.isParsingPdf || state.localManuals.length === 0) return;
+          try {
+            await clearLocalManualsInDb();
+            state.localManuals.forEach(function (m) {
+              pdfDocCache.delete(m.fileName);
+              clearPageTextCacheForFile(m.fileName);
+            });
+            state.localManuals = [];
+            rebuildCatalog();
+            showToast('로컬 매뉴얼 전체 초기화 완료');
+
+            if (state.catalog.length > 0) {
+              await openPdfInViewer(state.catalog[0].fileName, 1, false);
+            } else {
+              resetSearchNavUI();
+            }
+          } catch (err) {
+            console.error(err);
+            showToast('전체 초기화에 실패했습니다');
+          }
+        }
+
+        function handleDownloadRemoteIndexJson() {
+          if (state.catalog.length === 0) {
+            showToast('내보낼 PDF 매뉴얼이 없습니다');
+            return;
+          }
+
+          const payload = {
+            version: 1,
+            updatedAt: new Date().toISOString(),
+            manuals: state.catalog.map(function (m) {
+              return {
+                fileName: m.fileName,
+                pageCount: m.pageCount,
+                pages: m.pages
+              };
+            })
+          };
+
+          const jsonStr = JSON.stringify(payload);
+          const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'manual_index.json';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () {
+            URL.revokeObjectURL(url);
+          }, 1500);
+
+          showToast('manual_index.json 다운로드 시작 (' + state.catalog.length + '개 PDF)');
+        }
+
+        function clearPageTextCacheForFile(fileName) {
+          const prefix = fileName + '::';
+          Array.from(pageTextCache.keys()).forEach(function (key) {
+            if (key.startsWith(prefix)) pageTextCache.delete(key);
+          });
+        }
+
+        // =====================================================================
+        // 원본 PDF 연속 스크롤 뷰어 (High-DPI Lazy Rendering + Canvas Highlight)
+        // =====================================================================
+        async function getOrLoadPdfDoc(manualEntry) {
+          if (pdfDocCache.has(manualEntry.fileName)) {
+            return pdfDocCache.get(manualEntry.fileName);
+          }
+
+          if (!window.pdfjsLib) {
+            throw new Error('PDF.js 라이브러리가 로드되지 않았습니다.');
+          }
+
+          let loadingTask;
+          if (manualEntry.pdfData && manualEntry.pdfData.byteLength > 0) {
+            loadingTask = window.pdfjsLib.getDocument({ data: manualEntry.pdfData.slice(0) });
+          } else {
+            loadingTask = window.pdfjsLib.getDocument({ url: manualEntry.remoteUrl });
+          }
+
+          const pdfDoc = await loadingTask.promise;
+          pdfDocCache.set(manualEntry.fileName, pdfDoc);
+          return pdfDoc;
+        }
+
+        function computeTargetScale() {
+          const availableWidth = Math.max(260, pdfScrollViewport.clientWidth - 28);
+          if (state.zoomMode === 'fit') {
+            return Math.max(0.45, Math.min(2.6, availableWidth / state.basePageWidth));
+          }
+          return state.zoomScale;
+        }
+
+        async function openPdfInViewer(fileName, targetPage, shouldSmoothScroll) {
+          const entry = getCatalogEntry(fileName);
+          if (!entry) return;
+
+          const isSameFile = state.activeFileName === fileName && state.activePdfDoc !== null;
+
+          if (!isSameFile) {
+            state.activeFileName = fileName;
+            pdfFileSelect.value = fileName;
+            pdfEmptyView.classList.remove('hidden');
+            pdfEmptyView.innerHTML =
+              '<span>' + escapeHtml(fileName) + ' 원본 PDF 불러오는 중...</span>';
+            pdfPagesContainer.innerHTML = '';
+
+            try {
+              const pdfDoc = await getOrLoadPdfDoc(entry);
+              state.activePdfDoc = pdfDoc;
+              state.activePageCount = pdfDoc.numPages;
+
+              const firstPage = await pdfDoc.getPage(1);
+              const baseVp = firstPage.getViewport({ scale: 1 });
+              state.basePageWidth = baseVp.width;
+              state.basePageHeight = baseVp.height;
+
+              if (state.zoomMode === 'fit') {
+                state.zoomScale = computeTargetScale();
+              }
+
+              buildPageSlots();
+            } catch (err) {
+              console.error('Failed to load PDF document:', err);
+              state.activePdfDoc = null;
+              pdfEmptyView.classList.remove('hidden');
+              pdfEmptyView.innerHTML =
+                '<span>원본 PDF를 불러오지 못했습니다: ' +
+                escapeHtml(fileName) +
+                '</span><span>서버 경로(<code>' +
+                escapeHtml(entry.remoteUrl) +
+                '</code>)에 파일이 있는지 확인하거나 관리자 모드에서 직접 업로드하세요.</span>';
+              return;
+            }
+          }
+
+          const clampedPage = Math.max(1, Math.min(state.activePageCount, targetPage || 1));
+          scrollToPdfPage(clampedPage, shouldSmoothScroll);
+        }
+
+        function buildPageSlots() {
+          if (pageObserver) {
+            pageObserver.disconnect();
+            pageObserver = null;
+          }
+
+          state.renderGeneration++;
+          state.renderedPages.clear();
+          state.renderingPages.clear();
+          pdfPagesContainer.innerHTML = '';
+          pdfEmptyView.classList.add('hidden');
+
+          const scale = computeTargetScale();
+          state.zoomScale = scale;
+          const estW = Math.floor(state.basePageWidth * scale);
+          const estH = Math.floor(state.basePageHeight * scale);
+
+          const fragment = document.createDocumentFragment();
+          for (let p = 1; p <= state.activePageCount; p++) {
+            const slot = document.createElement('div');
+            slot.className = 'pdf-page-slot';
+            slot.dataset.page = String(p);
+            slot.style.width = estW + 'px';
+            slot.style.height = estH + 'px';
+
+            const placeholder = document.createElement('div');
+            placeholder.className = 'pdf-page-placeholder';
+            placeholder.textContent = 'p.' + p + ' 렌더링 대기...';
+
+            const canvas = document.createElement('canvas');
+            canvas.className = 'pdf-page-canvas';
+
+            const hlLayer = document.createElement('div');
+            hlLayer.className = 'pdf-highlight-layer';
+
+            const label = document.createElement('span');
+            label.className = 'pdf-page-label';
+            label.textContent = 'p.' + p;
+
+            slot.appendChild(placeholder);
+            slot.appendChild(canvas);
+            slot.appendChild(hlLayer);
+            slot.appendChild(label);
+            fragment.appendChild(slot);
+          }
+
+          pdfPagesContainer.appendChild(fragment);
+          updateMatchSlotBorders();
+          updatePageIndicator(1);
+
+          // Lazy Rendering Observer (현재 뷰포트 + 위아래 900px 인접 페이지 자동 렌더링)
+          pageObserver = new IntersectionObserver(
+            function (entries) {
+              entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                  const pNum = parseInt(entry.target.dataset.page, 10);
+                  if (!isNaN(pNum)) {
+                    schedulePageAndNeighborsRender(pNum);
+                  }
+                }
+              });
+            },
+            {
+              root: pdfScrollViewport,
+              rootMargin: '900px 0px 900px 0px',
+              threshold: 0.01
+            }
+          );
+
+          Array.from(pdfPagesContainer.children).forEach(function (slot) {
+            pageObserver.observe(slot);
+          });
+        }
+
+        function schedulePageAndNeighborsRender(centerPage) {
+          const pagesToRender = [centerPage, centerPage + 1, centerPage - 1];
+          pagesToRender.forEach(function (p) {
+            if (p >= 1 && p <= state.activePageCount) {
+              renderSinglePage(p, state.renderGeneration);
+            }
+          });
+        }
+
+        async function renderSinglePage(pageNum, generation) {
+          if (!state.activePdfDoc) return;
+          if (generation !== state.renderGeneration) return;
+          if (state.renderedPages.has(pageNum) || state.renderingPages.has(pageNum)) return;
+
+          const slot = pdfPagesContainer.querySelector(
+            '.pdf-page-slot[data-page="' + pageNum + '"]'
+          );
+          if (!slot) return;
+
+          state.renderingPages.add(pageNum);
+
+          try {
+            const page = await state.activePdfDoc.getPage(pageNum);
+            if (generation !== state.renderGeneration) return;
+
+            const viewport = page.getViewport({ scale: state.zoomScale });
+            const dpr = Math.min(window.devicePixelRatio || 1, 3);
+
+            const cssW = Math.floor(viewport.width);
+            const cssH = Math.floor(viewport.height);
+
+            slot.style.width = cssW + 'px';
+            slot.style.height = cssH + 'px';
+
+            const canvas = slot.querySelector('.pdf-page-canvas');
+            canvas.width = Math.floor(viewport.width * dpr);
+            canvas.height = Math.floor(viewport.height * dpr);
+            canvas.style.width = cssW + 'px';
+            canvas.style.height = cssH + 'px';
+
+            const ctx = canvas.getContext('2d', { alpha: false });
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const renderContext = {
+              canvasContext: ctx,
+              viewport: viewport,
+              transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null
+            };
+
+            await page.render(renderContext).promise;
+            if (generation !== state.renderGeneration) return;
+
+            const placeholder = slot.querySelector('.pdf-page-placeholder');
+            if (placeholder) placeholder.classList.add('hidden');
+
+            state.renderedPages.add(pageNum);
+            await renderHighlightsForPage(pageNum, page, viewport, slot, generation);
+          } catch (err) {
+            if (generation === state.renderGeneration) {
+              console.error('Render error p.' + pageNum + ':', err);
+            }
+          } finally {
+            state.renderingPages.delete(pageNum);
+          }
+        }
+
+        async function getCachedPageTextContent(fileName, pageNum, pageObj) {
+          const key = fileName + '::' + pageNum;
+          if (pageTextCache.has(key)) return pageTextCache.get(key);
+          const tc = await pageObj.getTextContent();
+          pageTextCache.set(key, tc);
+          return tc;
+        }
+
+        async function renderHighlightsForPage(pageNum, pageObj, viewport, slot, generation) {
+          const hlLayer = slot.querySelector('.pdf-highlight-layer');
+          if (!hlLayer) return;
+          hlLayer.innerHTML = '';
+
+          const keywords = Array.from(new Set(state.activeHighlights.filter(Boolean))).sort(
+            function (a, b) {
+              return b.length - a.length;
+            }
+          );
+          if (keywords.length === 0) return;
+
+          const textContent = await getCachedPageTextContent(
+            state.activeFileName,
+            pageNum,
+            pageObj
+          );
+          if (generation !== state.renderGeneration) return;
+
+          const items = (textContent.items || []).filter(function (it) {
+            return it && typeof it.str === 'string' && it.str.length > 0;
+          });
+          if (items.length === 0) return;
+
+          // 전체 페이지 문자열과 각 문자별 item 인덱스 매핑 (PDF가 토큰을 쪼갠 경우에도 정확히 좌표 계산)
+          const charRefs = [];
+          let joined = '';
+          for (let i = 0; i < items.length; i++) {
+            const str = items[i].str;
+            for (let c = 0; c < str.length; c++) {
+              charRefs.push({ itemIdx: i, charIdx: c });
+            }
+            joined += str;
+            // 다음 아이템과 공백 구분 추가 (줄바꿈/단어 분리 대비)
+            charRefs.push({ itemIdx: -1, charIdx: -1 });
+            joined += ' ';
+          }
+
+          const pattern = new RegExp(keywords.map(escapeRegExp).join('|'), 'gi');
+          const boxes = [];
+          let match;
+
+          while ((match = pattern.exec(joined)) !== null) {
+            if (match[0].length === 0) break;
+            const mStart = match.index;
+            const mEnd = mStart + match[0].length;
+
+            // 매칭 구간에 포함된 item별로 부분 범위(startChar..endChar) 수집
+            const perItemRanges = new Map();
+            for (let pos = mStart; pos < mEnd; pos++) {
+              const ref = charRefs[pos];
+              if (!ref || ref.itemIdx === -1) continue;
+              if (!perItemRanges.has(ref.itemIdx)) {
+                perItemRanges.set(ref.itemIdx, { min: ref.charIdx, max: ref.charIdx + 1 });
+              } else {
+                const r = perItemRanges.get(ref.itemIdx);
+                if (ref.charIdx < r.min) r.min = ref.charIdx;
+                if (ref.charIdx + 1 > r.max) r.max = ref.charIdx + 1;
+              }
+            }
+
+            perItemRanges.forEach(function (range, itemIdx) {
+              const item = items[itemIdx];
+              const tx = window.pdfjsLib.Util.transform(viewport.transform, item.transform);
+              const fontHeight = Math.hypot(tx[2], tx[3]) || Math.abs(tx[0]) || 12;
+              const fullWidth = (item.width || 0) * viewport.scale || fontHeight * item.str.length * 0.55;
+              const strLen = Math.max(1, item.str.length);
+
+              const x = tx[4] + (fullWidth * range.min) / strLen;
+              const w = Math.max(12, (fullWidth * (range.max - range.min)) / strLen);
+              const y = tx[5] - fontHeight * 0.92;
+              const h = fontHeight * 1.18;
+
+              boxes.push({ x: x - 2, y: y - 2, w: w + 4, h: h + 4 });
+            });
+          }
+
+          const vpW = viewport.width;
+          const vpH = viewport.height;
+          const frag = document.createDocumentFragment();
+
+          boxes.forEach(function (b) {
+            const div = document.createElement('div');
+            div.className = 'pdf-hl-box';
+            div.style.left = Math.max(0, (b.x / vpW) * 100) + '%';
+            div.style.top = Math.max(0, (b.y / vpH) * 100) + '%';
+            div.style.width = Math.min(100, (b.w / vpW) * 100) + '%';
+            div.style.height = Math.min(100, (b.h / vpH) * 100) + '%';
+            frag.appendChild(div);
+          });
+
+          hlLayer.appendChild(frag);
+        }
+
+        async function refreshHighlightsOnRenderedPages() {
+          if (!state.activePdfDoc) return;
+          const gen = state.renderGeneration;
+          const renderedList = Array.from(state.renderedPages);
+          for (let i = 0; i < renderedList.length; i++) {
+            const pNum = renderedList[i];
+            const slot = pdfPagesContainer.querySelector(
+              '.pdf-page-slot[data-page="' + pNum + '"]'
+            );
+            if (!slot) continue;
+            const page = await state.activePdfDoc.getPage(pNum);
+            const viewport = page.getViewport({ scale: state.zoomScale });
+            await renderHighlightsForPage(pNum, page, viewport, slot, gen);
+          }
+        }
+
+        function updateMatchSlotBorders() {
+          const matchedSet = new Set(
+            state.searchMatches
+              .filter(function (m) {
+                return m.fileName === state.activeFileName;
+              })
+              .map(function (m) {
+                return m.pageNum;
+              })
+          );
+
+          Array.from(pdfPagesContainer.children).forEach(function (slot) {
+            const p = parseInt(slot.dataset.page, 10);
+            slot.classList.toggle('is-match-page', matchedSet.has(p));
+          });
+        }
+
+        function scrollToPdfPage(pageNum, smooth) {
+          const slot = pdfPagesContainer.querySelector(
+            '.pdf-page-slot[data-page="' + pageNum + '"]'
+          );
+          if (!slot) return;
+
+          schedulePageAndNeighborsRender(pageNum);
+          updatePageIndicator(pageNum);
+
+          if (smooth) {
+            slot.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start',
+              inline: 'nearest'
+            });
+          } else {
+            pdfScrollViewport.scrollTop = Math.max(0, slot.offsetTop - 16);
+          }
+        }
+
+        function updatePageIndicator(pageNum) {
+          state.currentVisiblePage = pageNum;
+          pdfPageIndicator.textContent = pageNum + ' / ' + state.activePageCount + ' p';
+        }
+
+        function detectCurrentVisiblePage() {
+          const slots = pdfPagesContainer.children;
+          if (!slots || slots.length === 0) return;
+
+          const vpRect = pdfScrollViewport.getBoundingClientRect();
+          const probeY = vpRect.top + vpRect.height * 0.3;
+
+          let bestPage = state.currentVisiblePage;
+          let bestDist = Infinity;
+
+          for (let i = 0; i < slots.length; i++) {
+            const r = slots[i].getBoundingClientRect();
+            const center = (r.top + r.bottom) / 2;
+            const dist = Math.abs(center - probeY);
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestPage = parseInt(slots[i].dataset.page, 10) || 1;
+            }
+          }
+
+          if (bestPage !== state.currentVisiblePage) {
+            updatePageIndicator(bestPage);
+          }
+        }
+
+        function applyZoom(mode, delta) {
+          if (!state.activePdfDoc) return;
+          const keepPage = state.currentVisiblePage;
+
+          if (mode === 'fit') {
+            state.zoomMode = 'fit';
+            state.zoomScale = computeTargetScale();
+          } else {
+            state.zoomMode = 'custom';
+            state.zoomScale = Math.max(0.5, Math.min(3.0, state.zoomScale + delta));
+          }
+
+          buildPageSlots();
+          scrollToPdfPage(keepPage, false);
+        }
+
+        function toggleFullscreenViewer() {
+          const keepPage = state.currentVisiblePage;
+          state.isFullscreen = !state.isFullscreen;
+          pdfViewerCard.classList.toggle('is-fullscreen', state.isFullscreen);
+          document.body.classList.toggle('viewer-fullscreen-lock', state.isFullscreen);
+          btnToggleFullscreen.textContent = state.isFullscreen
+            ? '전체화면 닫기'
+            : '전체화면 확대보기';
+
+          if (state.activePdfDoc && state.zoomMode === 'fit') {
+            setTimeout(function () {
+              buildPageSlots();
+              scrollToPdfPage(keepPage, false);
+            }, 40);
+          }
+        }
+
+        // =====================================================================
+        // 통합 검색 및 자동 페이지 점프 (알람 / DB2 / 수동 키워드)
+        // =====================================================================
+        function parseSmartManualQuery(rawQuery) {
+          const trimmed = rawQuery.trim();
+          if (!trimmed) return null;
+
+          if (/^70\d{4}$/.test(trimmed)) {
+            const conv = alarmToDb2(trimmed);
+            if (conv) {
+              const shortDb2 = conv.address.replace(/^DB2\./i, '');
+              return { keywords: [trimmed, conv.address, shortDb2], requireAll: false };
+            }
+          }
+
+          const db2Match = trimmed.match(/^(?:DB2\.)?(?:DBX)?(\d{3,4})\.([0-7])$/i);
+          if (db2Match) {
+            const b = parseInt(db2Match[1], 10);
+            const bit = parseInt(db2Match[2], 10);
+            const alarmNum = db2ToAlarm(b, bit);
+            if (alarmNum) {
+              const fullDb2 = 'DB2.DBX' + b + '.' + bit;
+              const shortDb2 = 'DBX' + b + '.' + bit;
+              const kws = [alarmNum, fullDb2, shortDb2];
+              if (kws.indexOf(trimmed) === -1) kws.push(trimmed);
+              return { keywords: kws, requireAll: false };
+            }
+          }
+
+          const terms = trimmed.split(/\s+/).filter(Boolean);
+          return { keywords: terms, requireAll: true };
+        }
+
+        function searchAllCatalogPages(keywords, requireAllTerms) {
+          const cleanKeywords = Array.from(
+            new Set(
+              keywords
+                .map(function (k) {
+                  return String(k || '').trim();
+                })
+                .filter(Boolean)
+            )
+          );
+          if (cleanKeywords.length === 0 || state.catalog.length === 0) return [];
+
+          const lowerKws = cleanKeywords.map(function (k) {
+            return k.toLowerCase();
+          });
+
+          const hits = [];
+
+          for (let mIdx = 0; mIdx < state.catalog.length; mIdx++) {
+            const manual = state.catalog[mIdx];
+            const pages = Array.isArray(manual.pages) ? manual.pages : [];
+
+            for (let pIdx = 0; pIdx < pages.length; pIdx++) {
+              const page = pages[pIdx];
+              if (!page || !page.text) continue;
+              const lowerText = page.text.toLowerCase();
+
+              const matchedTerms = [];
+              for (let k = 0; k < lowerKws.length; k++) {
+                if (lowerText.indexOf(lowerKws[k]) !== -1) {
+                  matchedTerms.push(cleanKeywords[k]);
+                }
+              }
+
+              const isHit = requireAllTerms
+                ? matchedTerms.length === lowerKws.length
+                : matchedTerms.length > 0;
+
+              if (isHit) {
+                hits.push({
+                  fileName: manual.fileName,
+                  pageNum: page.pageNum,
+                  matchedTerms: matchedTerms
+                });
+              }
+            }
+          }
+
+          return hits;
+        }
+
+        function resetSearchNavUI() {
+          state.searchMatches = [];
+          state.currentMatchIdx = -1;
+          state.activeHighlights = [];
+          pdfSearchNav.classList.add('hidden');
+          updateMatchSlotBorders();
+          refreshHighlightsOnRenderedPages();
+        }
+
+        function updateSearchNavUI() {
+          const total = state.searchMatches.length;
+          if (total === 0) {
+            if (state.activeHighlights.length > 0 && state.catalog.length > 0) {
+              pdfSearchNav.classList.remove('hidden');
+              pdfSearchCount.textContent = '검색 결과 0건';
+              pdfSearchTarget.textContent =
+                '일치하는 페이지를 찾지 못했습니다 (' + state.activeHighlights.join(', ') + ')';
+              btnPrevMatch.disabled = true;
+              btnNextMatch.disabled = true;
+            } else {
+              pdfSearchNav.classList.add('hidden');
+            }
+            return;
+          }
+
+          const current = state.searchMatches[state.currentMatchIdx];
+          pdfSearchNav.classList.remove('hidden');
+          pdfSearchCount.textContent =
+            '검색 결과 ' + (state.currentMatchIdx + 1) + ' / ' + total + '건';
+          pdfSearchTarget.textContent =
+            current.fileName + ' · p.' + current.pageNum + ' (' + current.matchedTerms.join(', ') + ')';
+          btnPrevMatch.disabled = total <= 1;
+          btnNextMatch.disabled = total <= 1;
+        }
+
+        async function jumpToMatch(index, bringViewerIntoView) {
+          if (state.searchMatches.length === 0) return;
+          const total = state.searchMatches.length;
+          const wrapped = ((index % total) + total) % total;
+          state.currentMatchIdx = wrapped;
+
+          const match = state.searchMatches[wrapped];
+          updateSearchNavUI();
+
+          await openPdfInViewer(match.fileName, match.pageNum, true);
+          updateMatchSlotBorders();
+          await refreshHighlightsOnRenderedPages();
+
+          if (bringViewerIntoView && !state.isFullscreen) {
+            pdfViewerCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+
+        async function runActiveSearch(bringViewerIntoView) {
+          if (state.catalog.length === 0) {
+            resetSearchNavUI();
+            return;
+          }
+
+          const manualQuery = manualKeywordInput.value.trim();
+          let keywords = [];
+          let requireAll = false;
+
+          if (manualQuery.length > 0) {
+            const parsed = parseSmartManualQuery(manualQuery);
+            if (parsed) {
+              keywords = parsed.keywords;
+              requireAll = parsed.requireAll;
+            }
+          } else if (state.currentConversion) {
+            const c = state.currentConversion;
+            keywords = [c.alarmStr, c.db2Address, c.shortDb2];
+            requireAll = false;
+          } else {
+            resetSearchNavUI();
+            return;
+          }
+
+          state.activeHighlights = keywords;
+          state.searchMatches = searchAllCatalogPages(keywords, requireAll);
+          state.currentMatchIdx = state.searchMatches.length > 0 ? 0 : -1;
+
+          updateSearchNavUI();
+          updateMatchSlotBorders();
+
+          if (state.searchMatches.length > 0) {
+            await jumpToMatch(0, bringViewerIntoView);
+          } else {
+            await refreshHighlightsOnRenderedPages();
+          }
+        }
+
+        // =====================================================================
+        // 계산기 및 최근 조회 기록 (localStorage)
+        // =====================================================================
+        function setResultDisplay(value, breakdown, label, conversionMeta, autoSearch) {
+          resultLabel.textContent = label;
+          state.currentConversion = conversionMeta || null;
+
+          if (value) {
+            state.currentCopyText = value;
+            resultValue.textContent = value;
+            resultBreakdown.textContent = breakdown || '';
+            resultCard.classList.add('has-result');
+            resultCard.setAttribute('aria-label', value + ' 복사하기');
+          } else {
+            state.currentCopyText = '';
+            resultValue.textContent = state.mode === 'alarmToDb2' ? 'DB2.DBX---.-' : '70----';
+            resultBreakdown.textContent = '';
+            resultCard.classList.remove('has-result');
+            resultCard.setAttribute('aria-label', '변환 결과 대기 중');
+          }
+
+          if (autoSearch && !manualKeywordInput.value.trim()) {
+            runActiveSearch(false);
+          }
+        }
+
+        function buildDb2Breakdown(byteNum, bitNum) {
+          const diff = byteNum - 180;
+          const mid = Math.floor(diff / 8);
+          const rem = diff % 8;
+          const end = rem * 8 + bitNum;
+          return `(${byteNum} - 180 = ${diff}) → 중간 ${String(mid).padStart(2, '0')} (${diff}÷8=몫 ${mid}, 나머지 ${rem}) · 끝 ${String(end).padStart(2, '0')} (${rem}×8+${bitNum})`;
+        }
+
+        function loadHistory() {
+          try {
+            const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.slice(0, MAX_HISTORY) : [];
+          } catch (_) {
+            return [];
+          }
+        }
+
+        function persistHistory() {
+          try {
+            localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(state.history));
+          } catch (_) {}
+        }
+
+        function addHistory(entry) {
+          const filtered = state.history.filter(function (item) {
+            return !(item.mode === entry.mode && item.inputLabel === entry.inputLabel);
+          });
+          filtered.unshift(entry);
+          state.history = filtered.slice(0, MAX_HISTORY);
+          persistHistory();
+          renderHistory();
+        }
+
+        function clearHistory() {
+          state.history = [];
+          try {
+            localStorage.removeItem(HISTORY_STORAGE_KEY);
+          } catch (_) {}
+          renderHistory();
+          showToast('조회 기록을 삭제했습니다');
+        }
+
+        function renderHistory() {
+          historyList.innerHTML = '';
+          if (state.history.length === 0) {
+            historyEmpty.classList.remove('hidden');
+            btnClearHistory.hidden = true;
+            return;
+          }
+
+          historyEmpty.classList.add('hidden');
+          btnClearHistory.hidden = false;
+
+          state.history.forEach(function (item) {
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'history-item-btn';
+
+            const pair = document.createElement('div');
+            pair.className = 'history-pair';
+
+            const inSpan = document.createElement('span');
+            inSpan.className = 'history-input';
+            inSpan.textContent = item.inputLabel;
+
+            const arrow = document.createElement('span');
+            arrow.className = 'history-arrow';
+            arrow.textContent = '→';
+            arrow.setAttribute('aria-hidden', 'true');
+
+            const outSpan = document.createElement('span');
+            outSpan.className =
+              'history-output ' + (item.mode === 'alarmToDb2' ? 'is-orange' : 'is-cyan');
+            outSpan.textContent = item.outputLabel;
+
+            pair.appendChild(inSpan);
+            pair.appendChild(arrow);
+            pair.appendChild(outSpan);
+
+            const meta = document.createElement('span');
+            meta.className = 'history-meta';
+            meta.textContent = item.mode === 'alarmToDb2' ? '알람→DB2' : 'DB2→알람';
+
+            btn.appendChild(pair);
+            btn.appendChild(meta);
+
+            btn.addEventListener('click', function () {
+              restoreFromHistory(item);
+            });
+
+            li.appendChild(btn);
+            historyList.appendChild(li);
+          });
+        }
+
+        function restoreFromHistory(item) {
+          if (manualKeywordInput.value.trim()) {
+            manualKeywordInput.value = '';
+            btnClearKeyword.classList.add('hidden');
+          }
+          switchMode(item.mode, false);
+          if (item.mode === 'alarmToDb2') {
+            alarmInput.value = item.alarmStr;
+            evaluateAlarmInput(false);
+          } else {
+            byteInput.value = String(item.byteNum);
+            setSelectedBit(item.bitNum);
+            evaluateDb2Input(false);
+          }
+        }
+
+        function switchMode(newMode, shouldFocus) {
+          state.mode = newMode;
+          const isAlarmMode = newMode === 'alarmToDb2';
+
+          document.body.classList.toggle('mode-db2', !isAlarmMode);
+          tabAlarmToDb2.setAttribute('aria-selected', String(isAlarmMode));
+          tabDb2ToAlarm.setAttribute('aria-selected', String(!isAlarmMode));
+
+          panelAlarmToDb2.classList.toggle('hidden', !isAlarmMode);
+          panelDb2ToAlarm.classList.toggle('hidden', isAlarmMode);
+
+          if (isAlarmMode) {
+            evaluateAlarmInput(false);
+            if (shouldFocus) alarmInput.focus();
+          } else {
+            evaluateDb2Input(false);
+            if (shouldFocus) byteInput.focus();
+          }
+        }
+
+        function evaluateAlarmInput(saveHistory) {
+          const cleaned = alarmInput.value.replace(/\D/g, '').slice(0, 6);
+          if (alarmInput.value !== cleaned) {
+            alarmInput.value = cleaned;
+          }
+
+          alarmCounter.textContent = cleaned.length + ' / 6';
+
+          if (cleaned.length === 0) {
+            setFeedback(alarmFeedback, '', '70으로 시작하는 6자리 알람 번호를 입력하세요.');
+            setResultDisplay(null, '', 'DB2 비트 어드레스', null, false);
+            return;
+          }
+
+          const startsInvalid =
+            (cleaned.length === 1 && cleaned !== '7') ||
+            (cleaned.length >= 2 && !cleaned.startsWith('70'));
+
+          if (startsInvalid) {
+            setFeedback(
+              alarmFeedback,
+              'error',
+              '70으로 시작하는 6자리 알람 번호만 변환할 수 있습니다 (예: 700123).'
+            );
+            setResultDisplay(null, '', 'DB2 비트 어드레스', null, false);
+            return;
+          }
+
+          if (cleaned.length < 6) {
+            setFeedback(
+              alarmFeedback,
+              'warn',
+              '6자리 숫자를 모두 입력하세요 (' + (6 - cleaned.length) + '자리 남음).'
+            );
+            setResultDisplay(null, '', 'DB2 비트 어드레스', null, false);
+            return;
+          }
+
+          const res = alarmToDb2(cleaned);
+          if (!res) {
+            setFeedback(alarmFeedback, 'error', '유효한 6자리 알람 번호(70xxxx)가 아닙니다.');
+            setResultDisplay(null, '', 'DB2 비트 어드레스', null, false);
+            return;
+          }
+
+          const shortDb2 = res.address.replace(/^DB2\./i, '');
+          if (manualKeywordInput.value.trim()) {
+            manualKeywordInput.value = '';
+            btnClearKeyword.classList.add('hidden');
+          }
+
+          setFeedback(alarmFeedback, 'ok', '변환 완료 · 매뉴얼에서 일치 페이지를 자동 탐색합니다.');
+          setResultDisplay(
+            res.address,
+            res.breakdown,
+            'DB2 비트 어드레스',
+            { alarmStr: cleaned, db2Address: res.address, shortDb2: shortDb2 },
+            true
+          );
+
+          if (saveHistory) {
+            addHistory({
+              mode: 'alarmToDb2',
+              alarmStr: cleaned,
+              inputLabel: cleaned,
+              outputLabel: res.address
+            });
+          }
+        }
+
+        function setSelectedBit(bit) {
+          state.selectedBit = bit;
+          bitButtons.forEach(function (btn) {
+            const btnBit = parseInt(btn.dataset.bit, 10);
+            btn.setAttribute('aria-pressed', String(btnBit === bit));
+          });
+          selectedBitHint.textContent = bit === null ? '미선택' : '선택: .' + bit;
+        }
+
+        function evaluateDb2Input(saveMode) {
+          clearTimeout(db2HistoryTimer);
+
+          const rawStr = String(byteInput.value || '').trim();
+          const hasByte = rawStr !== '';
+          const byteNum = hasByte ? parseInt(rawStr, 10) : NaN;
+          const bitNum = state.selectedBit;
+
+          if (!hasByte && bitNum === null) {
+            setFeedback(db2Feedback, '', '180 이상의 바이트 번호를 입력하고 비트를 선택하세요.');
+            setResultDisplay(null, '', 'PLC 알람 번호', null, false);
+            return;
+          }
+
+          if (!hasByte) {
+            setFeedback(db2Feedback, 'warn', '바이트 번호(180 이상)를 입력하세요.');
+            setResultDisplay(null, '', 'PLC 알람 번호', null, false);
+            return;
+          }
+
+          if (isNaN(byteNum) || byteNum < 180) {
+            setFeedback(
+              db2Feedback,
+              'error',
+              'DB2 바이트 번호는 180 이상이어야 합니다 (시작: DB2.DBX180.0).'
+            );
+            setResultDisplay(null, '', 'PLC 알람 번호', null, false);
+            return;
+          }
+
+          if (bitNum === null) {
+            setFeedback(
+              db2Feedback,
+              'warn',
+              '아래 비트 버튼(0 ~ 7)을 선택하면 즉시 알람 번호가 계산됩니다.'
+            );
+            setResultDisplay(null, '', 'PLC 알람 번호', null, false);
+            return;
+          }
+
+          const alarmNum = db2ToAlarm(byteNum, bitNum);
+          if (!alarmNum) {
+            setFeedback(
+              db2Feedback,
+              'error',
+              '유효한 DB2 바이트(180 이상) 및 비트(0~7) 값이 아닙니다.'
+            );
+            setResultDisplay(null, '', 'PLC 알람 번호', null, false);
+            return;
+          }
+
+          const db2Address = 'DB2.DBX' + byteNum + '.' + bitNum;
+          const shortDb2 = 'DBX' + byteNum + '.' + bitNum;
+
+          if (manualKeywordInput.value.trim()) {
+            manualKeywordInput.value = '';
+            btnClearKeyword.classList.add('hidden');
+          }
+
+          const breakdown = buildDb2Breakdown(byteNum, bitNum);
+          setFeedback(db2Feedback, 'ok', '역산 완료 · 매뉴얼에서 일치 페이지를 자동 탐색합니다.');
+          setResultDisplay(
+            alarmNum,
+            breakdown,
+            'PLC 알람 번호',
+            { alarmStr: alarmNum, db2Address: db2Address, shortDb2: shortDb2 },
+            true
+          );
+
+          const entry = {
+            mode: 'db2ToAlarm',
+            byteNum: byteNum,
+            bitNum: bitNum,
+            inputLabel: db2Address,
+            outputLabel: alarmNum
+          };
+
+          if (saveMode === 'immediate') {
+            addHistory(entry);
+          } else if (saveMode === 'debounced') {
+            db2HistoryTimer = setTimeout(function () {
+              addHistory(entry);
+            }, 650);
+          }
+        }
+
+        // --- Clipboard Copy ---
+        function fallbackCopyText(text) {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.setAttribute('readonly', '');
+          textarea.style.position = 'fixed';
+          textarea.style.top = '-9999px';
+          textarea.style.left = '-9999px';
+          document.body.appendChild(textarea);
+          textarea.select();
+          textarea.setSelectionRange(0, textarea.value.length);
+          let ok = false;
+          try {
+            ok = document.execCommand('copy');
+          } catch (_) {
+            ok = false;
+          }
+          document.body.removeChild(textarea);
+          return ok;
+        }
+
+        function copyCurrentResult() {
+          if (!state.currentCopyText) return;
+          const textToCopy = state.currentCopyText;
+
+          if (state.mode === 'db2ToAlarm') {
+            const byteNum = parseInt(byteInput.value, 10);
+            if (!isNaN(byteNum) && byteNum >= 180 && state.selectedBit !== null) {
+              clearTimeout(db2HistoryTimer);
+              addHistory({
+                mode: 'db2ToAlarm',
+                byteNum: byteNum,
+                bitNum: state.selectedBit,
+                inputLabel: 'DB2.DBX' + byteNum + '.' + state.selectedBit,
+                outputLabel: textToCopy
+              });
+            }
+          }
+
+          const onCopied = function () {
+            showToast('복사되었습니다 (' + textToCopy + ')');
+          };
+
+          if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(textToCopy).then(onCopied, function () {
+              if (fallbackCopyText(textToCopy)) onCopied();
+              else showToast('복사에 실패했습니다');
+            });
+          } else if (fallbackCopyText(textToCopy)) {
+            onCopied();
+          } else {
+            showToast('복사에 실패했습니다');
+          }
+
+          if (state.searchMatches.length > 0) {
+            jumpToMatch(Math.max(0, state.currentMatchIdx), true);
+          }
+        }
+
+        // --- Event Wiring ---
+        btnAdminToggle.addEventListener('click', function () {
+          if (state.isAdmin) {
+            setAdminMode(false);
+            showToast('일반 팀원 모드로 전환했습니다');
+          } else {
+            openAdminModal();
+          }
+        });
+
+        btnAdminExit.addEventListener('click', function () {
+          setAdminMode(false);
+          showToast('일반 팀원 모드로 전환했습니다');
+        });
+
+        btnAdminCancel.addEventListener('click', closeAdminModal);
+
+        adminModal.addEventListener('click', function (e) {
+          if (e.target === adminModal) closeAdminModal();
+        });
+
+        adminAuthForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          if (adminPwInput.value === ADMIN_PW) {
+            closeAdminModal();
+            setAdminMode(true);
+            showToast('관리자 모드가 활성화되었습니다');
+          } else {
+            adminAuthError.textContent = '비밀번호가 일치하지 않습니다.';
+            adminAuthError.classList.remove('hidden');
+            adminPwInput.select();
+          }
+        });
+
+        btnUploadPdf.addEventListener('click', function () {
+          if (state.isParsingPdf) return;
+          pdfFileInput.click();
+        });
+
+        pdfFileInput.addEventListener('change', function () {
+          const files = pdfFileInput.files ? Array.from(pdfFileInput.files) : [];
+          pdfFileInput.value = '';
+          if (files.length > 0) {
+            handleAdminUploadFiles(files);
+          }
+        });
+
+        btnDownloadIndex.addEventListener('click', handleDownloadRemoteIndexJson);
+        btnClearLocalManuals.addEventListener('click', handleClearAllLocalManuals);
+
+        tabAlarmToDb2.addEventListener('click', function () {
+          switchMode('alarmToDb2', true);
+        });
+
+        tabDb2ToAlarm.addEventListener('click', function () {
+          switchMode('db2ToAlarm', true);
+        });
+
+        alarmInput.addEventListener('input', function () {
+          evaluateAlarmInput(true);
+        });
+
+        btnClearAlarm.addEventListener('click', function () {
+          alarmInput.value = '';
+          evaluateAlarmInput(false);
+          alarmInput.focus();
+        });
+
+        btnPrefix70.addEventListener('click', function () {
+          const cur = alarmInput.value.replace(/\D/g, '');
+          if (cur.length > 0 && cur.length <= 4 && !cur.startsWith('70')) {
+            alarmInput.value = ('70' + cur).slice(0, 6);
+          } else {
+            alarmInput.value = '70';
+          }
+          evaluateAlarmInput(true);
+          alarmInput.focus();
+          const len = alarmInput.value.length;
+          if (typeof alarmInput.setSelectionRange === 'function') {
+            alarmInput.setSelectionRange(len, len);
+          }
+        });
+
+        btnBackspaceAlarm.addEventListener('click', function () {
+          if (alarmInput.value.length > 0) {
+            alarmInput.value = alarmInput.value.slice(0, -1);
+            evaluateAlarmInput(false);
+          }
+          alarmInput.focus();
+        });
+
+        byteInput.addEventListener('input', function () {
+          evaluateDb2Input('debounced');
+        });
+
+        btnClearDb2.addEventListener('click', function () {
+          byteInput.value = '';
+          setSelectedBit(null);
+          evaluateDb2Input(false);
+          byteInput.focus();
+        });
+
+        bitButtons.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const bit = parseInt(btn.dataset.bit, 10);
+            setSelectedBit(bit);
+            evaluateDb2Input('immediate');
+          });
+        });
+
+        resultCard.addEventListener('click', copyCurrentResult);
+        btnClearHistory.addEventListener('click', clearHistory);
+
+        // Viewer & Search Events
+        pdfFileSelect.addEventListener('change', function () {
+          if (pdfFileSelect.value) {
+            openPdfInViewer(pdfFileSelect.value, 1, false);
+          }
+        });
+
+        btnZoomOut.addEventListener('click', function () {
+          applyZoom('custom', -0.2);
+        });
+
+        btnZoomIn.addEventListener('click', function () {
+          applyZoom('custom', 0.2);
+        });
+
+        btnZoomFit.addEventListener('click', function () {
+          applyZoom('fit', 0);
+        });
+
+        btnToggleFullscreen.addEventListener('click', toggleFullscreenViewer);
+
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') {
+            if (!adminModal.classList.contains('hidden')) {
+              closeAdminModal();
+            } else if (state.isFullscreen) {
+              toggleFullscreenViewer();
+            }
+          }
+        });
+
+        pdfScrollViewport.addEventListener(
+          'scroll',
+          function () {
+            if (scrollRafId) return;
+            scrollRafId = requestAnimationFrame(function () {
+              scrollRafId = null;
+              detectCurrentVisiblePage();
+            });
+          },
+          { passive: true }
+        );
+
+        manualKeywordInput.addEventListener('input', function () {
+          btnClearKeyword.classList.toggle('hidden', manualKeywordInput.value.trim().length === 0);
+        });
+
+        manualKeywordInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            runActiveSearch(true);
+          }
+        });
+
+        btnManualSearch.addEventListener('click', function () {
+          runActiveSearch(true);
+        });
+
+        btnClearKeyword.addEventListener('click', function () {
+          manualKeywordInput.value = '';
+          btnClearKeyword.classList.add('hidden');
+          runActiveSearch(false);
+          manualKeywordInput.focus();
+        });
+
+        btnPrevMatch.addEventListener('click', function () {
+          jumpToMatch(state.currentMatchIdx - 1, false);
+        });
+
+        btnNextMatch.addEventListener('click', function () {
+          jumpToMatch(state.currentMatchIdx + 1, false);
+        });
+
+        let resizeTimer = null;
+        window.addEventListener('resize', function () {
+          if (!state.activePdfDoc || state.zoomMode !== 'fit') return;
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(function () {
+            const keepPage = state.currentVisiblePage;
+            buildPageSlots();
+            scrollToPdfPage(keepPage, false);
+          }, 200);
+        });
+
+        // --- App Bootstrap ---
+        async function init() {
+          state.history = loadHistory();
+          renderHistory();
+          switchMode('alarmToDb2', false);
+
+          const [localResult, remoteResult] = await Promise.all([
+            loadLocalManualsFromDb().catch(function () {
+              return [];
+            }),
+            fetchRemoteIndex()
+          ]);
+
+          state.localManuals = localResult;
+          state.remoteManuals = remoteResult;
+          rebuildCatalog();
+
+          if (state.catalog.length > 0) {
+            await openPdfInViewer(state.catalog[0].fileName, 1, false);
+          }
+        }
+
+        init();
+      })();
+    </script>
+  </body>
+</html>
