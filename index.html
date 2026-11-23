@@ -17,7 +17,7 @@
         --bg-card: #1e1e1e;
         --bg-elevated: #262626;
         --bg-input: #161616;
-        --bg-viewer-well: #0d0d0d;
+        --bg-viewer-well: #0b0b0b;
         --border-subtle: #2e2e2e;
         --border-strong: #404040;
         --text-primary: #f5f5f5;
@@ -31,7 +31,8 @@
         --highlight-fill: rgba(255, 213, 79, 0.45);
         --highlight-border: #ff9800;
         --status-warn: #ffb74d;
-        --status-error: #ff6b6b;
+        --status-error: #ff5252;
+        --status-error-bg: rgba(255, 82, 82, 0.12);
         --status-ok: #69f0ae;
         --active-accent: var(--accent-orange);
         --active-accent-dim: var(--accent-orange-dim);
@@ -42,7 +43,7 @@
         --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
       }
 
-      body.mode-db2 {
+      body.tab-db2 {
         --active-accent: var(--accent-cyan);
         --active-accent-dim: var(--accent-cyan-dim);
       }
@@ -78,37 +79,38 @@
         overflow: hidden;
       }
 
-      .app-shell {
+      /* Sticky Top Bar + 3-Tab Navigation (Compact & Fixed at Top) */
+      .top-chrome {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background-color: rgba(18, 18, 18, 0.96);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border-subtle);
+      }
+
+      .top-chrome-inner {
         width: 100%;
         max-width: 1200px;
         margin: 0 auto;
-        padding: 14px 16px 40px;
+        padding: 4px 10px 6px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        flex: 1;
+        gap: 4px;
       }
 
-      /* Header */
       .app-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid var(--border-subtle);
-      }
-
-      .brand-group {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
+        gap: 10px;
+        min-height: 32px;
       }
 
       .brand-title {
         margin: 0;
-        font-size: 1.125rem;
+        font-size: 1rem;
         font-weight: 800;
         letter-spacing: -0.01em;
         color: var(--text-primary);
@@ -117,43 +119,50 @@
         text-overflow: ellipsis;
       }
 
-      .brand-spec {
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .header-catalog-meta {
         font-size: 0.75rem;
         color: var(--text-muted);
         font-family: var(--font-mono);
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
+        display: none;
       }
 
       .btn-admin-toggle {
         appearance: none;
-        min-height: 56px;
-        padding: 0 14px;
-        border-radius: 10px;
+        min-height: 36px;
+        padding: 0 11px;
+        border-radius: 8px;
         border: 1px solid var(--border-subtle);
-        background-color: transparent;
+        background-color: var(--bg-card);
         color: var(--text-secondary);
         font-family: var(--font-sans);
-        font-size: 0.8125rem;
+        font-size: 0.75rem;
         font-weight: 700;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
+        gap: 5px;
         white-space: nowrap;
         flex-shrink: 0;
         transition: background-color 140ms var(--ease-out), border-color 140ms var(--ease-out), color 140ms var(--ease-out);
       }
 
       .btn-admin-toggle:hover {
-        background-color: var(--bg-card);
         color: var(--text-primary);
         border-color: var(--border-strong);
       }
 
       .btn-admin-toggle.is-active {
-        border-color: rgba(255, 152, 0, 0.55);
+        border-color: rgba(255, 152, 0, 0.6);
         background-color: var(--accent-orange-dim);
         color: var(--accent-orange);
       }
@@ -163,22 +172,125 @@
         outline-offset: 2px;
       }
 
-      /* Admin Panel (Hidden in Team Member Mode) */
-      .admin-panel {
+      /* 3-Tab Top Navigation Bar (Height >= 56px) */
+      .nav-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
         background-color: var(--bg-card);
-        border: 1.5px solid rgba(255, 152, 0, 0.45);
-        border-radius: var(--radius-card);
-        padding: 18px;
+        padding: 4px;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+      }
+
+      .nav-tab-btn {
+        appearance: none;
+        position: relative;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        min-height: 56px;
+        padding: 6px 6px;
+        background: transparent;
+        color: var(--text-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out), transform 100ms var(--ease-out);
+      }
+
+      .nav-tab-btn:hover {
+        color: var(--text-primary);
+        background-color: rgba(255, 255, 255, 0.04);
+      }
+
+      .nav-tab-btn:active {
+        transform: scale(0.98);
+      }
+
+      .nav-tab-btn:focus-visible {
+        outline: 2px solid var(--active-accent);
+        outline-offset: 2px;
+      }
+
+      .nav-tab-btn[aria-selected="true"]#tabBtnAlarm {
+        background-color: var(--accent-orange);
+        color: #121212;
+      }
+
+      .nav-tab-btn[aria-selected="true"]#tabBtnDb2 {
+        background-color: var(--accent-cyan);
+        color: #121212;
+      }
+
+      .nav-tab-btn[aria-selected="true"]#tabBtnViewer {
+        background-color: var(--accent-orange);
+        color: #121212;
+      }
+
+      .tab-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background-color: var(--status-error);
+        color: #ffffff;
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+
+      .nav-tab-btn[aria-selected="true"] .tab-badge {
+        background-color: #121212;
+        color: var(--accent-orange);
+      }
+
+      /* Main Container */
+      .app-shell {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 14px 12px 32px;
         display: flex;
         flex-direction: column;
         gap: 14px;
+        flex: 1;
+      }
+
+      .app-shell.is-viewer-tab {
+        padding: 8px 10px 8px;
+        gap: 8px;
+      }
+
+      /* Admin Panel (Hidden in Team Mode) */
+      .admin-panel {
+        background-color: var(--bg-card);
+        border: 1.5px solid rgba(255, 152, 0, 0.5);
+        border-radius: var(--radius-card);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
       }
 
       .admin-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: 10px;
         flex-wrap: wrap;
       }
 
@@ -263,11 +375,10 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out);
       }
 
       .btn-remove-file:hover {
-        background-color: rgba(255, 107, 107, 0.14);
+        background-color: var(--status-error-bg);
         color: var(--status-error);
       }
 
@@ -338,68 +449,11 @@
         transition: width 120ms linear;
       }
 
-      /* Mode Switch Tabs */
-      .mode-tabs {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        background-color: var(--bg-card);
-        padding: 6px;
-        border-radius: var(--radius-card);
-        border: 1px solid var(--border-subtle);
-      }
-
-      .tab-btn {
-        appearance: none;
-        border: 1px solid transparent;
-        border-radius: 10px;
-        min-height: 56px;
-        padding: 10px 12px;
-        background: transparent;
-        color: var(--text-secondary);
-        font-family: var(--font-sans);
-        font-size: 0.9375rem;
-        font-weight: 700;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out), transform 120ms var(--ease-out);
-      }
-
-      .tab-btn:hover {
-        color: var(--text-primary);
-        background-color: rgba(255, 255, 255, 0.04);
-      }
-
-      .tab-btn:active {
-        transform: scale(0.98);
-      }
-
-      .tab-btn:focus-visible {
-        outline: 2px solid var(--active-accent);
-        outline-offset: 2px;
-      }
-
-      .tab-btn[aria-selected="true"]#tabAlarmToDb2 {
-        background-color: var(--accent-orange);
-        color: #121212;
-      }
-
-      .tab-btn[aria-selected="true"]#tabDb2ToAlarm {
-        background-color: var(--accent-cyan);
-        color: #121212;
-      }
-
-      /* Calculator Top Grid */
+      /* Calculator Workspace (Tabs 1 & 2) */
       .calc-grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 16px;
+        gap: 14px;
         align-items: start;
       }
 
@@ -407,10 +461,9 @@
       .calc-secondary {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 14px;
       }
 
-      /* Panel Card */
       .panel {
         background-color: var(--bg-card);
         border: 1px solid var(--border-subtle);
@@ -443,7 +496,7 @@
         font-variant-numeric: tabular-nums;
       }
 
-      /* Inputs & Action Controls (All >= 56px height) */
+      /* Inputs & Action Buttons (>= 56px in calculator) */
       .input-row {
         display: flex;
         align-items: stretch;
@@ -470,16 +523,16 @@
 
       .field-select {
         font-family: var(--font-sans);
-        font-size: 0.9375rem;
+        font-size: 0.875rem;
         font-weight: 700;
         letter-spacing: 0;
         cursor: pointer;
-        padding-right: 36px;
+        padding: 8px 10px;
       }
 
       .field-input.is-text-search {
         font-family: var(--font-sans);
-        font-size: 1rem;
+        font-size: 0.9375rem;
         font-weight: 600;
         letter-spacing: 0;
       }
@@ -492,7 +545,7 @@
       }
 
       .field-input.is-text-search::placeholder {
-        font-size: 0.9375rem;
+        font-size: 0.875rem;
       }
 
       .field-input:focus,
@@ -576,13 +629,13 @@
       }
 
       .btn-danger-outline {
-        border-color: rgba(255, 107, 107, 0.4);
-        background-color: rgba(255, 107, 107, 0.1);
+        border-color: rgba(255, 82, 82, 0.45);
+        background-color: var(--status-error-bg);
         color: var(--status-error);
       }
 
       .btn-danger-outline:hover {
-        background-color: rgba(255, 107, 107, 0.2);
+        background-color: rgba(255, 82, 82, 0.22);
         border-color: var(--status-error);
       }
 
@@ -592,7 +645,7 @@
         gap: 10px;
       }
 
-      /* Validation / Feedback Message */
+      /* Feedback Line */
       .feedback-line {
         min-height: 22px;
         font-size: 0.875rem;
@@ -663,18 +716,19 @@
         transform: scale(0.96);
       }
 
-      .bit-btn:focus-visible {
-        outline: 2px solid var(--accent-cyan);
-        outline-offset: 2px;
-      }
-
       .bit-btn[aria-pressed="true"] {
         background-color: var(--accent-cyan);
         border-color: var(--accent-cyan);
         color: #121212;
       }
 
-      /* Result Card */
+      /* Result Card & Prominent Jump-To-Manual CTA */
+      .result-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
       .result-card {
         appearance: none;
         width: 100%;
@@ -683,7 +737,7 @@
         background-color: var(--bg-card);
         border: 1.5px solid var(--border-subtle);
         border-radius: var(--radius-card);
-        padding: 26px 20px 22px;
+        padding: 24px 20px 20px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -705,11 +759,6 @@
 
       .result-card.has-result:active {
         transform: scale(0.985);
-      }
-
-      .result-card:focus-visible {
-        outline: 2px solid var(--active-accent);
-        outline-offset: 3px;
       }
 
       .result-caption {
@@ -764,153 +813,321 @@
         display: none;
       }
 
-      /* Original Full-Page PDF Manual Viewer */
-      .pdf-viewer-card {
+      .btn-jump-manual {
+        appearance: none;
+        width: 100%;
+        min-height: 62px;
+        padding: 14px 18px;
+        border-radius: var(--radius-card);
+        border: 2px solid var(--accent-orange);
+        background-color: var(--accent-orange);
+        color: #121212;
+        font-family: var(--font-sans);
+        font-size: 1.0625rem;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: 0 8px 24px rgba(255, 152, 0, 0.25);
+        transition: background-color 140ms var(--ease-out), transform 100ms var(--ease-out);
+      }
+
+      .btn-jump-manual:hover {
+        background-color: var(--accent-orange-hover);
+      }
+
+      .btn-jump-manual:active {
+        transform: scale(0.985);
+      }
+
+      .manual-match-note {
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        text-align: center;
+        padding: 2px 4px;
+      }
+
+      /* =====================================================================
+         TAB 3: DEDICATED FULL-HEIGHT PDF MANUAL VIEWER
+         ===================================================================== */
+      .viewer-workspace {
+        display: flex;
+        flex-direction: column;
+        height: calc(100dvh - 110px);
+        min-height: 440px;
         background-color: var(--bg-card);
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius-card);
-        padding: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+        overflow: hidden;
       }
 
-      .pdf-viewer-card.is-fullscreen {
+      /* Fullscreen Modal Mode (100vw x 100dvh, z-index 9999) */
+      .viewer-workspace.is-fullscreen {
         position: fixed;
         inset: 0;
-        z-index: 90;
-        border-radius: 0;
-        border: none;
-        padding: 12px;
-        background-color: var(--bg-canvas);
+        width: 100vw;
         height: 100dvh;
+        min-height: 100dvh;
+        z-index: 9999;
+        border: none;
+        border-radius: 0;
+        background-color: var(--bg-viewer-well);
       }
 
-      .pdf-viewer-card.is-fullscreen .pdf-scroll-viewport {
-        flex: 1;
-        height: auto;
-        max-height: none;
+      .viewer-workspace.is-fullscreen .viewer-toolbar-normal {
+        display: none;
       }
 
-      .pdf-search-nav {
-        background-color: var(--bg-input);
-        border: 1px solid rgba(255, 152, 0, 0.45);
-        border-radius: var(--radius-control);
-        padding: 12px;
+      .viewer-workspace.is-fullscreen .viewer-floating-bar {
+        display: flex;
+      }
+
+      /* Compact 2-Row Toolbar (Normal Tab 3 Mode) */
+      .viewer-toolbar-normal {
+        background-color: var(--bg-card);
+        border-bottom: 1px solid var(--border-subtle);
+        padding: 8px;
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 6px;
+        flex-shrink: 0;
       }
 
-      .pdf-search-nav-meta {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-
-      .pdf-search-count {
-        font-size: 0.9375rem;
-        font-weight: 800;
-        color: var(--accent-orange);
-        font-variant-numeric: tabular-nums;
-      }
-
-      .pdf-search-target {
-        font-family: var(--font-mono);
-        font-size: 0.8125rem;
-        color: var(--text-secondary);
-        font-variant-numeric: tabular-nums;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 100%;
-      }
-
-      .pdf-search-nav-btns {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-      }
-
-      .pdf-toolbar {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .pdf-toolbar-row {
+      .vt-row {
         display: flex;
         align-items: stretch;
-        gap: 8px;
-        flex-wrap: wrap;
+        gap: 6px;
+        min-width: 0;
       }
 
-      .pdf-page-indicator {
-        min-height: 58px;
-        padding: 0 14px;
-        border-radius: var(--radius-control);
+      .vt-btn {
+        appearance: none;
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border-strong);
+        background-color: var(--bg-elevated);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.8125rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: background-color 140ms var(--ease-out), transform 100ms var(--ease-out);
+      }
+
+      .vt-btn:hover {
+        background-color: #323232;
+      }
+
+      .vt-btn:active {
+        transform: scale(0.96);
+      }
+
+      .vt-btn:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .vt-btn.is-orange {
+        background-color: var(--accent-orange);
+        border-color: var(--accent-orange);
+        color: #121212;
+      }
+
+      .vt-btn.is-orange-outline {
+        border-color: rgba(255, 152, 0, 0.55);
+        background-color: var(--accent-orange-dim);
+        color: var(--accent-orange);
+      }
+
+      .vt-select {
+        flex: 1;
+        min-width: 0;
+        min-height: 44px;
+        padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border-strong);
+        background-color: var(--bg-input);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.8125rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .vt-search-input {
+        flex: 1;
+        min-width: 0;
+        min-height: 44px;
+        padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border-strong);
+        background-color: var(--bg-input);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 600;
+      }
+
+      .vt-search-input::placeholder {
+        color: var(--text-muted);
+        font-size: 0.8125rem;
+      }
+
+      .vt-search-input:focus,
+      .vt-select:focus {
+        outline: none;
+        border-color: var(--accent-orange);
+      }
+
+      .vt-indicator {
+        min-height: 44px;
+        padding: 0 9px;
+        border-radius: 10px;
         background-color: var(--bg-input);
         border: 1px solid var(--border-subtle);
         display: inline-flex;
         align-items: center;
         justify-content: center;
         font-family: var(--font-mono);
-        font-size: 0.9375rem;
+        font-size: 0.8125rem;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
         color: var(--text-primary);
         white-space: nowrap;
+        flex-shrink: 0;
       }
 
-      .pdf-zoom-group {
-        display: flex;
-        align-items: stretch;
+      .vt-indicator.is-match {
+        color: var(--accent-orange);
+        border-color: rgba(255, 152, 0, 0.45);
+      }
+
+      /* Fullscreen Floating Translucent Toolbar (Occupies < 10% height) */
+      .viewer-floating-bar {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        padding: calc(8px + env(safe-area-inset-top, 0px)) 10px 8px;
+        background-color: rgba(18, 18, 18, 0.86);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        align-items: center;
+        justify-content: space-between;
         gap: 6px;
-        flex: 1;
+        flex-wrap: nowrap;
+        overflow-x: auto;
       }
 
-      .pdf-zoom-group .btn-control {
-        flex: 1;
+      .vf-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        flex-shrink: 0;
+      }
+
+      .vf-btn {
+        appearance: none;
+        min-height: 44px;
+        min-width: 44px;
         padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background-color: rgba(38, 38, 38, 0.92);
+        color: #f5f5f5;
+        font-family: var(--font-sans);
+        font-size: 0.8125rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
 
-      /* Continuous Scroll PDF Viewport */
+      .vf-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+
+      .vf-btn.is-accent {
+        border-color: rgba(255, 152, 0, 0.6);
+        color: var(--accent-orange);
+      }
+
+      .vf-btn.is-close {
+        min-height: 46px;
+        padding: 0 14px;
+        background-color: var(--accent-orange);
+        border-color: var(--accent-orange);
+        color: #121212;
+        font-size: 0.875rem;
+        font-weight: 800;
+      }
+
+      .vf-page {
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        color: #ffffff;
+        padding: 0 6px;
+        white-space: nowrap;
+      }
+
+      /* Continuous 2D Scrollable PDF Viewport */
       .pdf-scroll-viewport {
+        flex: 1;
         width: 100%;
-        height: 70vh;
-        min-height: 440px;
-        max-height: 920px;
+        min-height: 0;
         overflow: auto;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
         background-color: var(--bg-viewer-well);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-control);
-        padding: 16px 10px 28px;
+        position: relative;
+      }
+
+      .viewer-workspace.is-fullscreen .pdf-scroll-viewport {
+        padding-top: calc(64px + env(safe-area-inset-top, 0px));
+      }
+
+      /* width: max-content + min-width: 100% ensures left side NEVER clips when zoomed in */
+      .pdf-pages-container {
+        width: max-content;
+        min-width: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 16px;
-        position: relative;
-      }
-
-      .pdf-pages-container {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 18px;
+        padding: 12px 10px 36px;
       }
 
       .pdf-page-slot {
         position: relative;
-        background-color: #ffffff;
+        background-color: #1a1a1a;
         border-radius: 6px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
         overflow: hidden;
         flex-shrink: 0;
-        transition: box-shadow 180ms var(--ease-out);
+      }
+
+      .pdf-page-slot.is-rendered {
+        background-color: #ffffff;
       }
 
       .pdf-page-slot.is-match-page {
@@ -951,31 +1168,90 @@
         pointer-events: none;
       }
 
+      /* Page Loading Spinner Overlay (Prevents Blank White Screen) */
       .pdf-page-placeholder {
         position: absolute;
         inset: 0;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        background-color: #202020;
-        color: var(--text-muted);
-        font-family: var(--font-mono);
+        gap: 12px;
+        background-color: #1c1c1c;
+        color: var(--text-secondary);
         font-size: 0.875rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        padding: 16px;
+        text-align: center;
+      }
+
+      .spinner-ring {
+        width: 34px;
+        height: 34px;
+        border: 3px solid rgba(255, 255, 255, 0.14);
+        border-top-color: var(--accent-orange);
+        border-radius: 50%;
+        animation: spin 0.85s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
       }
 
       .pdf-empty-view {
         width: 100%;
-        min-height: 280px;
+        min-height: 300px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: 12px;
         padding: 28px 18px;
         text-align: center;
         color: var(--text-muted);
         font-size: 0.9375rem;
         line-height: 1.6;
+      }
+
+      /* Red Error Box for Missing / Failed PDF Files */
+      .pdf-error-box {
+        width: 100%;
+        max-width: 520px;
+        background-color: var(--status-error-bg);
+        border: 1.5px solid var(--status-error);
+        border-radius: var(--radius-control);
+        padding: 18px 16px;
+        color: #ffd6d6;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .pdf-error-title {
+        font-size: 0.9375rem;
+        font-weight: 800;
+        color: var(--status-error);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .pdf-error-detail {
+        font-size: 0.875rem;
+        line-height: 1.55;
+        word-break: break-all;
+      }
+
+      .pdf-error-detail code {
+        font-family: var(--font-mono);
+        color: #ffffff;
+        background-color: rgba(0, 0, 0, 0.35);
+        padding: 2px 6px;
+        border-radius: 4px;
       }
 
       /* History Panel */
@@ -992,12 +1268,11 @@
         font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
-        transition: color 140ms var(--ease-out), background-color 140ms var(--ease-out);
       }
 
       .btn-text-danger:hover {
         color: var(--status-error);
-        background-color: rgba(255, 107, 107, 0.1);
+        background-color: var(--status-error-bg);
       }
 
       .btn-text-danger[hidden] {
@@ -1029,16 +1304,12 @@
         justify-content: space-between;
         gap: 12px;
         text-align: left;
-        transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out), transform 100ms var(--ease-out);
+        transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out);
       }
 
       .history-item-btn:hover {
         border-color: var(--border-strong);
         background-color: #202020;
-      }
-
-      .history-item-btn:active {
-        transform: scale(0.99);
       }
 
       .history-pair {
@@ -1132,12 +1403,12 @@
         text-align: right;
       }
 
-      /* Admin Password Modal (No window.prompt) */
+      /* Admin Password Modal */
       .modal-backdrop {
         position: fixed;
         inset: 0;
-        z-index: 120;
-        background-color: rgba(0, 0, 0, 0.72);
+        z-index: 10000;
+        background-color: rgba(0, 0, 0, 0.75);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1176,7 +1447,7 @@
         gap: 10px;
       }
 
-      /* Toast Notification */
+      /* Toast */
       .toast {
         position: fixed;
         left: 50%;
@@ -1198,7 +1469,7 @@
         max-width: calc(100vw - 32px);
         overflow: hidden;
         text-overflow: ellipsis;
-        z-index: 140;
+        z-index: 10010;
         transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out);
       }
 
@@ -1211,15 +1482,31 @@
         display: none !important;
       }
 
-      /* Responsive Desktop Expansion */
-      @media (min-width: 920px) {
-        .app-shell {
-          padding: 22px 28px 44px;
-          gap: 18px;
+      /* Desktop Responsive Expansion */
+      @media (min-width: 900px) {
+        .top-chrome-inner {
+          padding: 10px 24px 10px;
+          gap: 10px;
         }
 
         .brand-title {
-          font-size: 1.375rem;
+          font-size: 1.25rem;
+        }
+
+        .header-catalog-meta {
+          display: inline;
+        }
+
+        .nav-tab-btn {
+          font-size: 0.9375rem;
+        }
+
+        .app-shell {
+          padding: 20px 24px 36px;
+        }
+
+        .app-shell.is-viewer-tab {
+          padding: 12px 24px 16px;
         }
 
         .admin-actions-grid {
@@ -1235,45 +1522,30 @@
           gap: 20px;
         }
 
-        .pdf-toolbar {
-          flex-direction: row;
-          align-items: stretch;
-          flex-wrap: wrap;
+        .viewer-workspace {
+          height: calc(100dvh - 146px);
         }
 
-        .pdf-toolbar-row.is-file-row {
-          flex: 1.3;
-          min-width: 260px;
-        }
-
-        .pdf-toolbar-row.is-ctrl-row {
-          flex: 1.5;
-          justify-content: flex-end;
-        }
-
-        .pdf-zoom-group {
-          flex: initial;
-        }
-
-        .pdf-zoom-group .btn-control {
-          flex: initial;
-          padding: 0 16px;
-        }
-
-        .pdf-scroll-viewport {
-          height: 76vh;
+        .viewer-toolbar-normal {
+          padding: 10px 12px;
+          gap: 8px;
         }
       }
 
       @media (max-width: 390px) {
-        .tab-btn {
-          font-size: 0.875rem;
-          padding: 8px 6px;
+        .nav-tab-btn {
+          font-size: 0.8125rem;
+          padding: 6px 4px;
         }
 
         .field-input {
           font-size: 1.375rem;
           padding: 12px;
+        }
+
+        .vt-btn {
+          padding: 0 8px;
+          min-width: 40px;
         }
       }
 
@@ -1283,32 +1555,74 @@
         *::after {
           transition-duration: 0.01ms !important;
         }
+        .spinner-ring {
+          animation-duration: 1.6s !important;
+        }
       }
     </style>
   </head>
   <body>
-    <div class="app-shell">
-      <header class="app-header">
-        <div class="brand-group">
-          <h1 class="brand-title">SINUMERIK 840D 알람 · PDF 뷰어</h1>
-          <span class="brand-spec">70xxxx ↔ DB2.DBX___._ · 원본 매뉴얼 연동</span>
-        </div>
-        <button
-          id="btnAdminToggle"
-          class="btn-admin-toggle"
-          type="button"
-          aria-expanded="false"
-          aria-controls="adminPanel"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-          <span id="btnAdminToggleText">관리자</span>
-        </button>
-      </header>
+    <!-- 상단 고정 헤더 + 3개 네비게이션 탭 바 -->
+    <div class="top-chrome">
+      <div class="top-chrome-inner">
+        <header class="app-header">
+          <h1 class="brand-title">SINUMERIK 840D 알람 · PDF</h1>
+          <div class="header-right">
+            <span id="headerCatalogMeta" class="header-catalog-meta">매뉴얼 확인 중...</span>
+            <button
+              id="btnAdminToggle"
+              class="btn-admin-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="adminPanel"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span id="btnAdminToggleText">관리자</span>
+            </button>
+          </div>
+        </header>
 
-      <!-- 관리자 매뉴얼 관리 패널 (비밀번호 인증 후에만 표시) -->
+        <nav class="nav-tabs" role="tablist" aria-label="메인 기능 탭">
+          <button
+            id="tabBtnAlarm"
+            class="nav-tab-btn"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="calcWorkspace"
+          >
+            알람 → 어드레스
+          </button>
+          <button
+            id="tabBtnDb2"
+            class="nav-tab-btn"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="calcWorkspace"
+          >
+            어드레스 → 알람
+          </button>
+          <button
+            id="tabBtnViewer"
+            class="nav-tab-btn"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="viewerWorkspace"
+          >
+            <span>매뉴얼 뷰어</span>
+            <span id="viewerTabBadge" class="tab-badge hidden" aria-label="매칭 결과 수">0</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <main id="appShell" class="app-shell">
+      <!-- 관리자 매뉴얼 관리 패널 (비밀번호 인증 후에만 노출) -->
       <section id="adminPanel" class="admin-panel hidden" aria-labelledby="adminPanelTitle">
         <div class="admin-header">
           <div>
@@ -1351,46 +1665,19 @@
 
         <ul id="adminManualList" class="manual-list"></ul>
         <p class="admin-deploy-note">
-          배포 방법: 다운로드한 <code>manual_index.json</code>을 HTML과 같은 위치에 올리고, 원본 PDF 파일들을 <code>./manuals/</code> 폴더에 업로드하면 모든 팀원 화면에 자동 반영됩니다.
+          배포 방법: 다운로드한 <code>manual_index.json</code>을 HTML과 같은 위치에 올리고, 원본 PDF 파일들을 <code>./manuals/</code> 폴더에 업로드하면 모든 팀원에게 즉시 반영됩니다.
         </p>
       </section>
 
-      <!-- 상단 모드 전환 탭 -->
-      <div class="mode-tabs" role="tablist" aria-label="변환 모드 선택">
-        <button
-          id="tabAlarmToDb2"
-          class="tab-btn"
-          type="button"
-          role="tab"
-          aria-selected="true"
-          aria-controls="panelAlarmToDb2"
-        >
-          알람번호 → DB2 어드레스
-        </button>
-        <button
-          id="tabDb2ToAlarm"
-          class="tab-btn"
-          type="button"
-          role="tab"
-          aria-selected="false"
-          aria-controls="panelDb2ToAlarm"
-        >
-          DB2 어드레스 → 알람번호
-        </button>
-      </div>
-
-      <!-- 계산기 + 최근 조회 기록 -->
-      <div class="calc-grid">
+      <!-- ================================================================
+           탭 1 & 탭 2: 계산기 워크스페이스 (탭 3 활성화 시 숨김)
+           ================================================================ -->
+      <div id="calcWorkspace" class="calc-grid">
         <div class="calc-primary">
           <!-- 탭 1: 알람번호 -> DB2 어드레스 -->
-          <section
-            id="panelAlarmToDb2"
-            class="panel"
-            role="tabpanel"
-            aria-labelledby="tabAlarmToDb2"
-          >
+          <section id="panelAlarmToDb2" class="panel" aria-labelledby="alarmInputLabel">
             <div class="panel-header">
-              <label class="panel-label" for="alarmInput">PLC 알람 번호 (6자리)</label>
+              <label id="alarmInputLabel" class="panel-label" for="alarmInput">PLC 알람 번호 (6자리)</label>
               <span class="panel-hint" id="alarmCounter">0 / 6</span>
             </div>
 
@@ -1407,30 +1694,16 @@
                 spellcheck="false"
                 aria-describedby="alarmFeedback"
               />
-              <button
-                id="btnClearAlarm"
-                class="btn-control"
-                type="button"
-                aria-label="알람 번호 초기화"
-              >
+              <button id="btnClearAlarm" class="btn-control" type="button" aria-label="알람 번호 초기화">
                 초기화(C)
               </button>
             </div>
 
             <div class="helper-actions">
-              <button
-                id="btnPrefix70"
-                class="btn-control btn-accent-outline"
-                type="button"
-              >
+              <button id="btnPrefix70" class="btn-control btn-accent-outline" type="button">
                 70 자동입력
               </button>
-              <button
-                id="btnBackspaceAlarm"
-                class="btn-control"
-                type="button"
-                aria-label="한 글자 지우기"
-              >
+              <button id="btnBackspaceAlarm" class="btn-control" type="button" aria-label="한 글자 지우기">
                 ⌫ 지움
               </button>
             </div>
@@ -1441,14 +1714,9 @@
           </section>
 
           <!-- 탭 2: DB2 어드레스 -> 알람번호 -->
-          <section
-            id="panelDb2ToAlarm"
-            class="panel hidden"
-            role="tabpanel"
-            aria-labelledby="tabDb2ToAlarm"
-          >
+          <section id="panelDb2ToAlarm" class="panel hidden" aria-labelledby="byteInputLabel">
             <div class="panel-header">
-              <label class="panel-label" for="byteInput">DB2 바이트 번호 (180 이상)</label>
+              <label id="byteInputLabel" class="panel-label" for="byteInput">DB2 바이트 번호 (180 이상)</label>
               <span class="panel-hint">DB2.DBX___._</span>
             </div>
 
@@ -1463,12 +1731,7 @@
                 autocomplete="off"
                 aria-describedby="db2Feedback"
               />
-              <button
-                id="btnClearDb2"
-                class="btn-control"
-                type="button"
-                aria-label="DB2 입력 초기화"
-              >
+              <button id="btnClearDb2" class="btn-control" type="button" aria-label="DB2 입력 초기화">
                 초기화(C)
               </button>
             </div>
@@ -1495,26 +1758,34 @@
             </div>
           </section>
 
-          <!-- 변환 결과 카드 (터치 시 복사 + 매뉴얼 페이지 이동) -->
-          <button
-            id="resultCard"
-            class="result-card"
-            type="button"
-            aria-label="변환 결과 카드 (결과가 있을 때 터치하여 복사)"
-          >
-            <div class="result-caption">
-              <span id="resultLabel">DB2 비트 어드레스</span>
-            </div>
-            <div id="resultValue" class="result-value">DB2.DBX---.-</div>
-            <div id="resultCopyCue" class="result-copy-cue" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-              <span>터치하여 복사 (하단 PDF 매뉴얼 자동 이동)</span>
-            </div>
-            <div id="resultBreakdown" class="result-breakdown"></div>
-          </button>
+          <!-- 결과 카드 + 매뉴얼 해당 페이지 바로보기 CTA 버튼 -->
+          <div class="result-stack">
+            <button
+              id="resultCard"
+              class="result-card"
+              type="button"
+              aria-label="변환 결과 카드 (결과가 있을 때 터치하여 복사)"
+            >
+              <div class="result-caption">
+                <span id="resultLabel">DB2 비트 어드레스</span>
+              </div>
+              <div id="resultValue" class="result-value">DB2.DBX---.-</div>
+              <div id="resultCopyCue" class="result-copy-cue" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span>카드를 터치하면 클립보드에 복사됩니다</span>
+              </div>
+              <div id="resultBreakdown" class="result-breakdown"></div>
+            </button>
+
+            <button id="btnJumpToManual" class="btn-jump-manual hidden" type="button">
+              <span id="btnJumpToManualText">매뉴얼 해당 페이지 바로보기 (총 0건) →</span>
+            </button>
+
+            <div id="manualMatchNote" class="manual-match-note hidden"></div>
+          </div>
         </div>
 
         <aside class="calc-secondary">
@@ -1551,97 +1822,86 @@
         </aside>
       </div>
 
-      <!-- 원본 PDF 전체 페이지 연속 스크롤 뷰어 -->
-      <section id="pdfViewerCard" class="pdf-viewer-card" aria-labelledby="viewerHeading">
-        <div class="panel-header">
-          <h2 id="viewerHeading" class="panel-label">원본 PDF 매뉴얼 뷰어</h2>
-          <span id="viewerSourceHint" class="panel-hint">매뉴얼 불러오는 중...</span>
-        </div>
-
-        <!-- 수동 키워드 / 알람코드 / DB2 어드레스 검색창 -->
-        <div class="input-row">
-          <input
-            id="manualKeywordInput"
-            class="field-input is-text-search"
-            type="search"
-            placeholder="매뉴얼 직접 검색 (예: 유압, 클램프, 700123, DB2.DBX190.7)"
-            autocomplete="off"
-            aria-label="매뉴얼 직접 검색"
-          />
-          <button id="btnClearKeyword" class="btn-control hidden" type="button">
-            지우기
-          </button>
-          <button id="btnManualSearch" class="btn-control btn-accent-solid" type="button">
-            검색
-          </button>
-        </div>
-
-        <!-- 다중 매칭 네비게이션 바 -->
-        <div id="pdfSearchNav" class="pdf-search-nav hidden" aria-live="polite">
-          <div class="pdf-search-nav-meta">
-            <span id="pdfSearchCount" class="pdf-search-count">검색 결과 0 / 0건</span>
-            <span id="pdfSearchTarget" class="pdf-search-target"></span>
-          </div>
-          <div class="pdf-search-nav-btns">
-            <button id="btnPrevMatch" class="btn-control" type="button">
-              ◀ 이전 결과
-            </button>
-            <button id="btnNextMatch" class="btn-control btn-accent-outline" type="button">
-              다음 결과 ▶
-            </button>
-          </div>
-        </div>
-
-        <!-- 뷰어 상단 툴바 -->
-        <div class="pdf-toolbar">
-          <div class="pdf-toolbar-row is-file-row">
+      <!-- ================================================================
+           탭 3: 독립된 [매뉴얼 뷰어] 전용 화면 (전체화면 100dvh 모달 지원)
+           ================================================================ -->
+      <section id="viewerWorkspace" class="viewer-workspace hidden" aria-label="원본 PDF 매뉴얼 뷰어">
+        <!-- 일반 탭 3 상단 2단 콤팩트 툴바 -->
+        <div class="viewer-toolbar-normal">
+          <!-- 툴바 1줄: PDF 파일 선택 + 검색 결과 네비게이션 + 전체화면 -->
+          <div class="vt-row">
             <select
               id="pdfFileSelect"
-              class="field-select"
-              aria-label="열람할 PDF 매뉴얼 파일 선택"
+              class="vt-select"
+              aria-label="PDF 매뉴얼 선택"
               disabled
             >
               <option value="">등록된 PDF 매뉴얼 없음</option>
             </select>
-            <div id="pdfPageIndicator" class="pdf-page-indicator" aria-live="polite">
-              0 / 0 p
-            </div>
+
+            <span id="vtMatchIndicator" class="vt-indicator is-match hidden">검색 0/0건</span>
+            <button id="btnPrevMatch" class="vt-btn hidden" type="button" aria-label="이전 검색 결과">
+              ◀ 이전
+            </button>
+            <button id="btnNextMatch" class="vt-btn is-orange-outline hidden" type="button" aria-label="다음 검색 결과">
+              다음 ▶
+            </button>
+            <button id="btnEnterFullscreen" class="vt-btn is-orange-outline" type="button" aria-label="전체화면 확대보기">
+              전체화면
+            </button>
           </div>
 
-          <div class="pdf-toolbar-row is-ctrl-row">
-            <div class="pdf-zoom-group" role="group" aria-label="PDF 확대 및 축소">
-              <button id="btnZoomOut" class="btn-control" type="button" aria-label="축소">
-                −
-              </button>
-              <button id="btnZoomFit" class="btn-control" type="button">
-                화면맞춤
-              </button>
-              <button id="btnZoomIn" class="btn-control" type="button" aria-label="확대">
-                +
-              </button>
-            </div>
-            <button id="btnToggleFullscreen" class="btn-control btn-accent-outline" type="button">
-              전체화면 확대보기
+          <!-- 툴바 2줄: 키워드 직접 검색창 + 페이지 표시 + 축소/확대/맞춤 -->
+          <div class="vt-row">
+            <input
+              id="manualKeywordInput"
+              class="vt-search-input"
+              type="search"
+              placeholder="키워드·알람·DB2 검색 (예: 유압, 스핀들)"
+              autocomplete="off"
+              aria-label="매뉴얼 키워드 직접 검색"
+            />
+            <button id="btnManualSearch" class="vt-btn is-orange" type="button">
+              검색
             </button>
+            <span id="pdfPageIndicator" class="vt-indicator" aria-live="polite">0/0p</span>
+            <button id="btnZoomOut" class="vt-btn" type="button" aria-label="축소">−</button>
+            <button id="btnZoomIn" class="vt-btn" type="button" aria-label="확대">+</button>
+            <button id="btnZoomFit" class="vt-btn" type="button">맞춤</button>
           </div>
         </div>
 
-        <!-- 연속 스크롤 PDF 캔버스 컨테이너 -->
-        <div id="pdfScrollViewport" class="pdf-scroll-viewport" tabindex="0" aria-label="원본 PDF 페이지 영역">
+        <!-- 전체화면(100dvh 모달) 전용 반투명 플로팅 상단 툴바 -->
+        <div class="viewer-floating-bar" aria-label="전체화면 PDF 툴바">
+          <div class="vf-group">
+            <span id="vfPageIndicator" class="vf-page">0/0</span>
+            <button id="vfBtnPrev" class="vf-btn hidden" type="button">◀ 이전검색</button>
+            <button id="vfBtnNext" class="vf-btn is-accent hidden" type="button">다음검색 ▶</button>
+          </div>
+          <div class="vf-group">
+            <button id="vfBtnZoomOut" class="vf-btn" type="button" aria-label="축소">−</button>
+            <button id="vfBtnQuickZoom" class="vf-btn is-accent" type="button" aria-label="원터치 배율 전환">1.5x</button>
+            <button id="vfBtnZoomIn" class="vf-btn" type="button" aria-label="확대">+</button>
+            <button id="vfBtnClose" class="vf-btn is-close" type="button">✕ 닫기</button>
+          </div>
+        </div>
+
+        <!-- 연속 스크롤 원본 PDF 본문 영역 (더블탭 시 전체화면 토글) -->
+        <div id="pdfScrollViewport" class="pdf-scroll-viewport" tabindex="0" aria-label="원본 PDF 페이지 영역 (더블탭하여 전체화면 전환)">
           <div id="pdfPagesContainer" class="pdf-pages-container"></div>
           <div id="pdfEmptyView" class="pdf-empty-view">
             <span>등록된 PDF 매뉴얼이 없습니다.</span>
-            <span>서버에 <code>manual_index.json</code>과 원본 PDF를 배포하거나 우측 상단 [관리자]에서 PDF를 등록하세요.</span>
+            <span>원격 서버에 <code>manual_index.json</code>과 원본 PDF를 배포하거나 우측 상단 [관리자]에서 PDF를 등록하세요.</span>
           </div>
         </div>
       </section>
-    </div>
+    </main>
 
     <!-- 관리자 비밀번호 인증 모달 -->
     <div id="adminModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
       <form id="adminAuthForm" class="modal-dialog">
         <h2 id="adminModalTitle" class="modal-title">관리자 모드 인증</h2>
-        <p class="modal-desc">매뉴얼 업로드·삭제 및 배포용 인덱스 생성을 위해 비밀번호를 입력하세요.</p>
+        <p class="modal-desc">PDF 매뉴얼 등록·삭제 및 서버 배포용 인덱스 생성을 위해 비밀번호를 입력하세요.</p>
         <input
           id="adminPwInput"
           class="field-input"
@@ -1672,7 +1932,7 @@
       // =========================================================================
       const REMOTE_INDEX_URL = "./manual_index.json"; // 원격 서버 또는 GitHub Raw 인덱스 JSON 주소
       const REMOTE_PDF_BASE_URL = "./manuals/";       // 원본 PDF 파일들이 저장된 서버 폴더 경로
-      const ADMIN_PW = "7090";                        // 관리자 모드 진입 비밀번호
+      const ADMIN_PW = "1234";                        // 관리자 모드 진입 비밀번호
 
       // =========================================================================
       // [필수 적용 JavaScript 핵심 계산 함수 - 수정 없이 그대로 사용]
@@ -1705,7 +1965,9 @@
         const MAX_HISTORY = 5;
         const IDB_NAME = 'Sinumerik840DPdfViewerDB';
         const IDB_VERSION = 1;
-        const IDB_STORE = 'localManuals'; // keyPath: 'fileName', stores ArrayBuffer + pages text
+        const IDB_STORE = 'localManuals';
+        const MAX_CACHED_CANVASES = 12; // 모바일 캔버스 메모리 초과(백화 현상) 방지 한도
+        const RENDER_WINDOW_RADIUS = 2; // 현재/검색 페이지 기준 위아래 ±2페이지(총 5페이지) 우선 렌더링
 
         if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
           window.pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -1713,44 +1975,55 @@
         }
 
         const state = {
-          mode: 'alarmToDb2',
+          activeTab: 'alarm',       // 'alarm' | 'db2' | 'viewer'
+          lastCalcTab: 'alarm',
           selectedBit: null,
           currentCopyText: '',
-          currentConversion: null, // { alarmStr, db2Address, shortDb2 }
+          currentConversion: null,  // { alarmStr, db2Address, shortDb2 }
           history: [],
           isAdmin: false,
           isParsingPdf: false,
-          localManuals: [],   // IndexedDB records ({ fileName, pageCount, savedAt, pages, pdfData })
-          remoteManuals: [],  // Fetched from REMOTE_INDEX_URL ({ fileName, pageCount, pages })
-          catalog: [],        // Merged manuals (local overrides remote with same fileName)
+          localManuals: [],
+          remoteManuals: [],
+          catalog: [],
           activeFileName: '',
           activePdfDoc: null,
           activePageCount: 0,
           currentVisiblePage: 1,
-          zoomMode: 'fit',    // 'fit' | 'custom'
+          zoomMode: 'fit',          // 'fit' | 'custom'
+          zoomMultiplier: 1.0,      // relative to fitScale (1.0, 1.5, 2.0, etc.)
+          fitScale: 1.0,
           zoomScale: 1.0,
           basePageWidth: 595,
           basePageHeight: 842,
           renderGeneration: 0,
           renderedPages: new Set(),
           renderingPages: new Set(),
-          activeHighlights: [], // keywords currently highlighted on canvas
-          searchMatches: [],    // [{ fileName, pageNum, matchedTerms }]
+          activeHighlights: [],
+          searchMatches: [],        // [{ fileName, pageNum, matchedTerms }]
           currentMatchIdx: -1,
+          pendingJumpMatchIdx: null,
           isFullscreen: false
         };
 
-        // Caches
-        const pdfDocCache = new Map();       // fileName -> PDFDocumentProxy
-        const pageTextCache = new Map();     // `${fileName}::${pageNum}` -> PDF.js textContent
+        const pdfDocCache = new Map();
+        const pageTextCache = new Map();
         let pageObserver = null;
         let scrollRafId = null;
         let toastTimer = null;
         let db2HistoryTimer = null;
 
-        // DOM Elements - Header & Admin
+        // DOM Elements - Top Chrome & Tabs
+        const appShell = document.getElementById('appShell');
+        const headerCatalogMeta = document.getElementById('headerCatalogMeta');
         const btnAdminToggle = document.getElementById('btnAdminToggle');
         const btnAdminToggleText = document.getElementById('btnAdminToggleText');
+        const tabBtnAlarm = document.getElementById('tabBtnAlarm');
+        const tabBtnDb2 = document.getElementById('tabBtnDb2');
+        const tabBtnViewer = document.getElementById('tabBtnViewer');
+        const viewerTabBadge = document.getElementById('viewerTabBadge');
+
+        // DOM Elements - Admin
         const adminPanel = document.getElementById('adminPanel');
         const adminCatalogSummary = document.getElementById('adminCatalogSummary');
         const btnAdminExit = document.getElementById('btnAdminExit');
@@ -1765,16 +2038,15 @@
         const pdfProgressFill = document.getElementById('pdfProgressFill');
         const adminManualList = document.getElementById('adminManualList');
 
-        // DOM Elements - Admin Auth Modal
+        // DOM Elements - Admin Modal
         const adminModal = document.getElementById('adminModal');
         const adminAuthForm = document.getElementById('adminAuthForm');
         const adminPwInput = document.getElementById('adminPwInput');
         const adminAuthError = document.getElementById('adminAuthError');
         const btnAdminCancel = document.getElementById('btnAdminCancel');
 
-        // DOM Elements - Calculator
-        const tabAlarmToDb2 = document.getElementById('tabAlarmToDb2');
-        const tabDb2ToAlarm = document.getElementById('tabDb2ToAlarm');
+        // DOM Elements - Calculator Workspace
+        const calcWorkspace = document.getElementById('calcWorkspace');
         const panelAlarmToDb2 = document.getElementById('panelAlarmToDb2');
         const panelDb2ToAlarm = document.getElementById('panelDb2ToAlarm');
         const alarmInput = document.getElementById('alarmInput');
@@ -1793,29 +2065,39 @@
         const resultLabel = document.getElementById('resultLabel');
         const resultValue = document.getElementById('resultValue');
         const resultBreakdown = document.getElementById('resultBreakdown');
+        const btnJumpToManual = document.getElementById('btnJumpToManual');
+        const btnJumpToManualText = document.getElementById('btnJumpToManualText');
+        const manualMatchNote = document.getElementById('manualMatchNote');
 
         // DOM Elements - History
         const historyList = document.getElementById('historyList');
         const historyEmpty = document.getElementById('historyEmpty');
         const btnClearHistory = document.getElementById('btnClearHistory');
 
-        // DOM Elements - PDF Viewer
-        const pdfViewerCard = document.getElementById('pdfViewerCard');
-        const viewerSourceHint = document.getElementById('viewerSourceHint');
-        const manualKeywordInput = document.getElementById('manualKeywordInput');
-        const btnClearKeyword = document.getElementById('btnClearKeyword');
-        const btnManualSearch = document.getElementById('btnManualSearch');
-        const pdfSearchNav = document.getElementById('pdfSearchNav');
-        const pdfSearchCount = document.getElementById('pdfSearchCount');
-        const pdfSearchTarget = document.getElementById('pdfSearchTarget');
+        // DOM Elements - Tab 3 PDF Viewer
+        const viewerWorkspace = document.getElementById('viewerWorkspace');
+        const pdfFileSelect = document.getElementById('pdfFileSelect');
+        const vtMatchIndicator = document.getElementById('vtMatchIndicator');
         const btnPrevMatch = document.getElementById('btnPrevMatch');
         const btnNextMatch = document.getElementById('btnNextMatch');
-        const pdfFileSelect = document.getElementById('pdfFileSelect');
+        const btnEnterFullscreen = document.getElementById('btnEnterFullscreen');
+        const manualKeywordInput = document.getElementById('manualKeywordInput');
+        const btnManualSearch = document.getElementById('btnManualSearch');
         const pdfPageIndicator = document.getElementById('pdfPageIndicator');
         const btnZoomOut = document.getElementById('btnZoomOut');
-        const btnZoomFit = document.getElementById('btnZoomFit');
         const btnZoomIn = document.getElementById('btnZoomIn');
-        const btnToggleFullscreen = document.getElementById('btnToggleFullscreen');
+        const btnZoomFit = document.getElementById('btnZoomFit');
+
+        // Fullscreen Floating Toolbar Elements
+        const vfPageIndicator = document.getElementById('vfPageIndicator');
+        const vfBtnPrev = document.getElementById('vfBtnPrev');
+        const vfBtnNext = document.getElementById('vfBtnNext');
+        const vfBtnZoomOut = document.getElementById('vfBtnZoomOut');
+        const vfBtnQuickZoom = document.getElementById('vfBtnQuickZoom');
+        const vfBtnZoomIn = document.getElementById('vfBtnZoomIn');
+        const vfBtnClose = document.getElementById('vfBtnClose');
+
+        // Viewer Viewport
         const pdfScrollViewport = document.getElementById('pdfScrollViewport');
         const pdfPagesContainer = document.getElementById('pdfPagesContainer');
         const pdfEmptyView = document.getElementById('pdfEmptyView');
@@ -1829,7 +2111,9 @@
         const ICON_OK =
           '<svg class="feedback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
 
-        // --- Utilities ---
+        // =====================================================================
+        // 공용 유틸리티 & GitHub Pages 한글/특수문자 경로 안정화
+        // =====================================================================
         function escapeHtml(str) {
           return String(str)
             .replace(/&/g, '&amp;')
@@ -1841,6 +2125,30 @@
 
         function escapeRegExp(str) {
           return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function buildRemotePdfUrl(baseUrl, fileName, normForm) {
+          const cleanBase = String(baseUrl || './manuals/').replace(/\/+$/, '') + '/';
+          const cleanFile = String(fileName || '').replace(/^\/+/, '');
+          const segments = cleanFile.split('/').map(function (seg) {
+            let decoded = seg;
+            try {
+              decoded = decodeURIComponent(seg);
+            } catch (_) {
+              decoded = seg;
+            }
+            if (typeof decoded.normalize === 'function') {
+              decoded = decoded.normalize(normForm || 'NFC');
+            }
+            return encodeURIComponent(decoded);
+          });
+          return cleanBase + segments.join('/');
+        }
+
+        function buildReadablePdfPath(baseUrl, fileName) {
+          const cleanBase = String(baseUrl || './manuals/').replace(/^\.\//, '').replace(/\/+$/, '');
+          const cleanFile = String(fileName || '').replace(/^\/+/, '');
+          return (cleanBase ? cleanBase + '/' : '') + cleanFile;
         }
 
         function setFeedback(el, type, message) {
@@ -1863,11 +2171,13 @@
           }, 2200);
         }
 
-        // --- IndexedDB (Stores PDF ArrayBuffer + Extracted Page Text) ---
+        // =====================================================================
+        // IndexedDB 영구 저장소 (ArrayBuffer + 페이지별 검색 텍스트)
+        // =====================================================================
         function openDb() {
           return new Promise(function (resolve, reject) {
             if (!window.indexedDB) {
-              reject(new Error('IndexedDB 미지원 브라우저'));
+              reject(new Error('IndexedDB 미지원'));
               return;
             }
             const req = indexedDB.open(IDB_NAME, IDB_VERSION);
@@ -1897,7 +2207,7 @@
               };
               tx.onerror = function () {
                 db.close();
-                reject(tx.error || new Error('로컬 저장 실패'));
+                reject(tx.error || new Error('저장 실패'));
               };
             });
           });
@@ -1918,7 +2228,7 @@
               };
               req.onerror = function () {
                 db.close();
-                reject(req.error || new Error('로컬 목록 불러오기 실패'));
+                reject(req.error || new Error('로드 실패'));
               };
             });
           });
@@ -1935,7 +2245,7 @@
               };
               tx.onerror = function () {
                 db.close();
-                reject(tx.error || new Error('로컬 삭제 실패'));
+                reject(tx.error || new Error('삭제 실패'));
               };
             });
           });
@@ -1952,20 +2262,22 @@
               };
               tx.onerror = function () {
                 db.close();
-                reject(tx.error || new Error('전체 초기화 실패'));
+                reject(tx.error || new Error('초기화 실패'));
               };
             });
           });
         }
 
-        // --- Remote Index Fetch & Catalog Merge ---
+        // =====================================================================
+        // 원격 manual_index.json 로드 및 카탈로그 병합
+        // =====================================================================
         async function fetchRemoteIndex() {
           try {
             const sep = REMOTE_INDEX_URL.indexOf('?') === -1 ? '?' : '&';
             const url = REMOTE_INDEX_URL + sep + 't=' + Date.now();
-            const response = await fetch(url, { cache: 'no-store' });
-            if (!response.ok) return [];
-            const data = await response.json();
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) return [];
+            const data = await res.json();
             const rawList = Array.isArray(data)
               ? data
               : data && Array.isArray(data.manuals)
@@ -1982,11 +2294,12 @@
                   pageCount: item.pageCount || item.pages.length,
                   pages: item.pages,
                   source: 'remote',
-                  remoteUrl: REMOTE_PDF_BASE_URL + encodeURIComponent(item.fileName)
+                  remoteUrl: buildRemotePdfUrl(REMOTE_PDF_BASE_URL, item.fileName, 'NFC'),
+                  remoteUrlNfd: buildRemotePdfUrl(REMOTE_PDF_BASE_URL, item.fileName, 'NFD'),
+                  readablePath: buildReadablePdfPath(REMOTE_PDF_BASE_URL, item.fileName)
                 };
               });
           } catch (_) {
-            // 로컬 단독 실행 또는 원격 파일 미배포 환경에서는 조용히 패스
             return [];
           }
         }
@@ -1994,12 +2307,10 @@
         function rebuildCatalog() {
           const map = new Map();
 
-          // 1) 원격 인덱스 먼저 반영
           state.remoteManuals.forEach(function (rm) {
             map.set(rm.fileName, rm);
           });
 
-          // 2) IndexedDB 로컬 PDF(ArrayBuffer 포함)가 있으면 최우선 덮어쓰기 (오프라인/로컬 테스트 우선)
           state.localManuals.forEach(function (lm) {
             map.set(lm.fileName, {
               fileName: lm.fileName,
@@ -2008,7 +2319,9 @@
               pdfData: lm.pdfData || null,
               savedAt: lm.savedAt || 0,
               source: 'local',
-              remoteUrl: REMOTE_PDF_BASE_URL + encodeURIComponent(lm.fileName)
+              remoteUrl: buildRemotePdfUrl(REMOTE_PDF_BASE_URL, lm.fileName, 'NFC'),
+              remoteUrlNfd: buildRemotePdfUrl(REMOTE_PDF_BASE_URL, lm.fileName, 'NFD'),
+              readablePath: buildReadablePdfPath(REMOTE_PDF_BASE_URL, lm.fileName)
             });
           });
 
@@ -2025,7 +2338,6 @@
         }
 
         function renderCatalogUI() {
-          // 1) 뷰어 파일 선택 드롭다운 갱신
           const prevSelected = state.activeFileName;
           pdfFileSelect.innerHTML = '';
 
@@ -2035,8 +2347,8 @@
             opt.textContent = '등록된 PDF 매뉴얼 없음';
             pdfFileSelect.appendChild(opt);
             pdfFileSelect.disabled = true;
-            viewerSourceHint.textContent = '매뉴얼 미등록';
-            pdfPageIndicator.textContent = '0 / 0 p';
+            headerCatalogMeta.textContent = '매뉴얼 미등록';
+            updatePageIndicator(0, 0);
             pdfPagesContainer.innerHTML = '';
             pdfEmptyView.classList.remove('hidden');
             state.activeFileName = '';
@@ -2052,8 +2364,8 @@
               pdfFileSelect.appendChild(opt);
             });
 
-            viewerSourceHint.textContent =
-              state.catalog.length + '개 PDF · 총 ' + totalPages + 'p';
+            headerCatalogMeta.textContent =
+              '매뉴얼 ' + state.catalog.length + '종 · ' + totalPages + 'p';
 
             if (prevSelected && getCatalogEntry(prevSelected)) {
               pdfFileSelect.value = prevSelected;
@@ -2062,7 +2374,6 @@
             }
           }
 
-          // 2) 관리자 패널 목록 갱신
           renderAdminManualList();
         }
 
@@ -2136,7 +2447,85 @@
           });
         }
 
-        // --- Admin Authentication ---
+        // =====================================================================
+        // 상단 3개 탭 전환 (알람→어드레스 / 어드레스→알람 / 매뉴얼 뷰어)
+        // =====================================================================
+        async function switchAppTab(tabName, options) {
+          const opts = options || {};
+          state.activeTab = tabName;
+
+          const isAlarm = tabName === 'alarm';
+          const isDb2 = tabName === 'db2';
+          const isViewer = tabName === 'viewer';
+
+          document.body.classList.toggle('tab-db2', isDb2);
+          appShell.classList.toggle('is-viewer-tab', isViewer);
+
+          tabBtnAlarm.setAttribute('aria-selected', String(isAlarm));
+          tabBtnDb2.setAttribute('aria-selected', String(isDb2));
+          tabBtnViewer.setAttribute('aria-selected', String(isViewer));
+
+          calcWorkspace.classList.toggle('hidden', isViewer);
+          viewerWorkspace.classList.toggle('hidden', !isViewer);
+
+          if (isAlarm || isDb2) {
+            state.lastCalcTab = tabName;
+            panelAlarmToDb2.classList.toggle('hidden', !isAlarm);
+            panelDb2ToAlarm.classList.toggle('hidden', !isDb2);
+
+            if (isAlarm) {
+              evaluateAlarmInput(false);
+              if (opts.focusInput) alarmInput.focus();
+            } else {
+              evaluateDb2Input(false);
+              if (opts.focusInput) byteInput.focus();
+            }
+          } else if (isViewer) {
+            // 탭 3 진입 시 레이아웃이 표시된 직후 뷰어 너비 계산 및 자동 점프 실행
+            await new Promise(function (resolve) {
+              requestAnimationFrame(function () {
+                requestAnimationFrame(resolve);
+              });
+            });
+
+            if (state.catalog.length === 0) {
+              renderCatalogUI();
+              return;
+            }
+
+            const targetMatchIdx =
+              typeof opts.jumpMatchIdx === 'number'
+                ? opts.jumpMatchIdx
+                : state.pendingJumpMatchIdx !== null
+                ? state.pendingJumpMatchIdx
+                : state.searchMatches.length > 0 && state.currentMatchIdx >= 0
+                ? state.currentMatchIdx
+                : null;
+
+            state.pendingJumpMatchIdx = null;
+
+            if (targetMatchIdx !== null && state.searchMatches[targetMatchIdx]) {
+              await jumpToMatch(targetMatchIdx);
+            } else if (!state.activePdfDoc) {
+              await openPdfInViewer(state.catalog[0].fileName, 1, false);
+            } else if (state.zoomMode === 'fit') {
+              const newFit = computeFitScale();
+              if (Math.abs(newFit - state.fitScale) > 0.03) {
+                const keepPage = state.currentVisiblePage;
+                buildPageSlots();
+                scrollToPdfPage(keepPage, false);
+              } else {
+                scheduleWindowedRender(state.currentVisiblePage);
+              }
+            } else {
+              scheduleWindowedRender(state.currentVisiblePage);
+            }
+          }
+        }
+
+        // =====================================================================
+        // 관리자 모드 & PDF.js 업로드 / JSON 다운로드
+        // =====================================================================
         function setAdminMode(enabled) {
           state.isAdmin = enabled;
           adminPanel.classList.toggle('hidden', !enabled);
@@ -2160,7 +2549,6 @@
           adminPwInput.value = '';
         }
 
-        // --- Admin PDF Extraction & Index JSON Export ---
         function updatePdfProgress(visible, pct, statusText) {
           pdfProgressWrap.classList.toggle('hidden', !visible);
           if (visible) {
@@ -2211,6 +2599,13 @@
           return lines.join('\n').replace(/[ \t]{2,}/g, ' ').trim();
         }
 
+        function clearPageTextCacheForFile(fileName) {
+          const prefix = fileName + '::';
+          Array.from(pageTextCache.keys()).forEach(function (key) {
+            if (key.startsWith(prefix)) pageTextCache.delete(key);
+          });
+        }
+
         async function handleAdminUploadFiles(fileList) {
           const files = Array.from(fileList || []).filter(function (f) {
             return f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
@@ -2247,7 +2642,6 @@
 
               try {
                 const rawBuffer = await file.arrayBuffer();
-                // PDF.js 워커가 ArrayBuffer를 detach하지 않도록 복사본으로 파싱
                 const parseCopy = rawBuffer.slice(0);
                 const pdf = await window.pdfjsLib.getDocument({ data: parseCopy }).promise;
                 const totalPages = pdf.numPages;
@@ -2298,7 +2692,6 @@
 
                 await saveLocalManualToDb(record);
 
-                // 이전 캐시 제거 후 새 PDF 문서 반영
                 pdfDocCache.delete(file.name);
                 clearPageTextCacheForFile(file.name);
 
@@ -2333,11 +2726,10 @@
               showToast(successCount + '개 PDF 매뉴얼 저장 완료');
             }
 
-            if (lastUploadedFileName) {
+            if (state.currentConversion || manualKeywordInput.value.trim()) {
+              runIndexSearch(state.activeTab === 'viewer');
+            } else if (state.activeTab === 'viewer' && lastUploadedFileName) {
               await openPdfInViewer(lastUploadedFileName, 1, false);
-              if (state.currentConversion || manualKeywordInput.value.trim()) {
-                runActiveSearch(false);
-              }
             }
           } finally {
             state.isParsingPdf = false;
@@ -2358,11 +2750,11 @@
             rebuildCatalog();
             showToast('삭제 완료: ' + fileName);
 
-            if (state.catalog.length > 0 && !getCatalogEntry(state.activeFileName)) {
+            if (state.activeTab === 'viewer' && state.catalog.length > 0 && !getCatalogEntry(state.activeFileName)) {
               await openPdfInViewer(state.catalog[0].fileName, 1, false);
             }
             if (state.currentConversion || manualKeywordInput.value.trim()) {
-              runActiveSearch(false);
+              runIndexSearch(state.activeTab === 'viewer');
             }
           } catch (err) {
             console.error(err);
@@ -2382,10 +2774,10 @@
             rebuildCatalog();
             showToast('로컬 매뉴얼 전체 초기화 완료');
 
-            if (state.catalog.length > 0) {
+            if (state.catalog.length > 0 && state.activeTab === 'viewer') {
               await openPdfInViewer(state.catalog[0].fileName, 1, false);
-            } else {
-              resetSearchNavUI();
+            } else if (state.catalog.length === 0) {
+              resetSearchState();
             }
           } catch (err) {
             console.error(err);
@@ -2411,8 +2803,7 @@
             })
           };
 
-          const jsonStr = JSON.stringify(payload);
-          const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+          const blob = new Blob([JSON.stringify(payload)], { type: 'application/json;charset=utf-8' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -2427,16 +2818,38 @@
           showToast('manual_index.json 다운로드 시작 (' + state.catalog.length + '개 PDF)');
         }
 
-        function clearPageTextCacheForFile(fileName) {
-          const prefix = fileName + '::';
-          Array.from(pageTextCache.keys()).forEach(function (key) {
-            if (key.startsWith(prefix)) pageTextCache.delete(key);
-          });
+        // =====================================================================
+        // 모바일 고속 스트리밍 PDF 뷰어 (Range Chunk + ±2 Windowed Rendering + DPR<=2)
+        // =====================================================================
+        function showPdfErrorBox(readablePath, err) {
+          pdfPagesContainer.innerHTML = '';
+          pdfEmptyView.classList.remove('hidden');
+
+          const errMsg =
+            err && err.status === 404
+              ? '서버에 해당 PDF 파일이 존재하지 않습니다 (HTTP 404).'
+              : err && err.name === 'MissingPDFException'
+              ? '파일을 찾을 수 없습니다 (HTTP 404).'
+              : err && err.message
+              ? err.message
+              : '네트워크 오류 또는 파일 경로 문제로 로드에 실패했습니다.';
+
+          pdfEmptyView.innerHTML =
+            '<div class="pdf-error-box" role="alert">' +
+            '<div class="pdf-error-title">' +
+            ICON_WARN +
+            '<span>PDF 매뉴얼을 불러올 수 없습니다</span>' +
+            '</div>' +
+            '<div class="pdf-error-detail"><code>' +
+            escapeHtml(readablePath) +
+            '</code> 파일을 찾을 수 없거나 열 수 없습니다.</div>' +
+            '<div class="pdf-error-detail">상세 원인: ' +
+            escapeHtml(errMsg) +
+            '</div>' +
+            '<div class="pdf-error-detail">GitHub Pages 배포 시 파일명의 한글/특수문자 및 대소문자가 <code>manual_index.json</code>과 정확히 일치하는지 확인하거나, [관리자]에서 로컬 PDF를 등록하세요.</div>' +
+            '</div>';
         }
 
-        // =====================================================================
-        // 원본 PDF 연속 스크롤 뷰어 (High-DPI Lazy Rendering + Canvas Highlight)
-        // =====================================================================
         async function getOrLoadPdfDoc(manualEntry) {
           if (pdfDocCache.has(manualEntry.fileName)) {
             return pdfDocCache.get(manualEntry.fileName);
@@ -2446,24 +2859,59 @@
             throw new Error('PDF.js 라이브러리가 로드되지 않았습니다.');
           }
 
-          let loadingTask;
+          // 1) 로컬 IndexedDB 바이너리가 있는 경우 최우선 사용 (오프라인 즉시 로드)
           if (manualEntry.pdfData && manualEntry.pdfData.byteLength > 0) {
-            loadingTask = window.pdfjsLib.getDocument({ data: manualEntry.pdfData.slice(0) });
-          } else {
-            loadingTask = window.pdfjsLib.getDocument({ url: manualEntry.remoteUrl });
+            const localDoc = await window.pdfjsLib.getDocument({
+              data: manualEntry.pdfData.slice(0)
+            }).promise;
+            pdfDocCache.set(manualEntry.fileName, localDoc);
+            return localDoc;
           }
 
-          const pdfDoc = await loadingTask.promise;
-          pdfDocCache.set(manualEntry.fileName, pdfDoc);
-          return pdfDoc;
+          // 2) 원격 서버/GitHub Pages 스트리밍 로드 (필수 Range Streaming 옵션 적용)
+          const streamOpts = {
+            url: manualEntry.remoteUrl,
+            disableAutoFetch: true,
+            disableStream: false,
+            rangeChunkSize: 65536
+          };
+
+          try {
+            const remoteDoc = await window.pdfjsLib.getDocument(streamOpts).promise;
+            pdfDocCache.set(manualEntry.fileName, remoteDoc);
+            return remoteDoc;
+          } catch (nfcErr) {
+            // macOS 업로드로 인해 파일명이 NFD로 저장된 GitHub Pages 환경 자동 폴백
+            if (manualEntry.remoteUrlNfd && manualEntry.remoteUrlNfd !== manualEntry.remoteUrl) {
+              try {
+                const nfdDoc = await window.pdfjsLib.getDocument({
+                  url: manualEntry.remoteUrlNfd,
+                  disableAutoFetch: true,
+                  disableStream: false,
+                  rangeChunkSize: 65536
+                }).promise;
+                pdfDocCache.set(manualEntry.fileName, nfdDoc);
+                return nfdDoc;
+              } catch (_) {
+                throw nfcErr;
+              }
+            }
+            throw nfcErr;
+          }
         }
 
-        function computeTargetScale() {
-          const availableWidth = Math.max(260, pdfScrollViewport.clientWidth - 28);
-          if (state.zoomMode === 'fit') {
-            return Math.max(0.45, Math.min(2.6, availableWidth / state.basePageWidth));
-          }
-          return state.zoomScale;
+        function computeFitScale() {
+          const viewportW = pdfScrollViewport.clientWidth || window.innerWidth;
+          const availableWidth = Math.max(240, viewportW - 22);
+          return Math.max(0.4, Math.min(2.5, availableWidth / state.basePageWidth));
+        }
+
+        function updateZoomLabels() {
+          const multLabel =
+            state.zoomMultiplier < 1.35 ? '1.5x' : state.zoomMultiplier < 1.85 ? '2.0x' : '1.0x';
+          vfBtnQuickZoom.textContent = multLabel;
+          btnZoomFit.textContent =
+            state.zoomMode === 'fit' ? '맞춤' : Math.round(state.zoomMultiplier * 100) + '%';
         }
 
         async function openPdfInViewer(fileName, targetPage, shouldSmoothScroll) {
@@ -2475,42 +2923,53 @@
           if (!isSameFile) {
             state.activeFileName = fileName;
             pdfFileSelect.value = fileName;
+            pdfPagesContainer.innerHTML = '';
             pdfEmptyView.classList.remove('hidden');
             pdfEmptyView.innerHTML =
-              '<span>' + escapeHtml(fileName) + ' 원본 PDF 불러오는 중...</span>';
-            pdfPagesContainer.innerHTML = '';
+              '<div class="spinner-ring" aria-hidden="true"></div>' +
+              '<span>' +
+              escapeHtml(fileName) +
+              ' 스트리밍 연결 중...</span>';
 
             try {
               const pdfDoc = await getOrLoadPdfDoc(entry);
               state.activePdfDoc = pdfDoc;
               state.activePageCount = pdfDoc.numPages;
 
-              const firstPage = await pdfDoc.getPage(1);
-              const baseVp = firstPage.getViewport({ scale: 1 });
+              const samplePageNum = Math.max(1, Math.min(pdfDoc.numPages, targetPage || 1));
+              const samplePage = await pdfDoc.getPage(samplePageNum);
+              const baseVp = samplePage.getViewport({ scale: 1 });
               state.basePageWidth = baseVp.width;
               state.basePageHeight = baseVp.height;
 
-              if (state.zoomMode === 'fit') {
-                state.zoomScale = computeTargetScale();
-              }
+              state.fitScale = computeFitScale();
+              state.zoomScale =
+                state.zoomMode === 'fit'
+                  ? state.fitScale
+                  : Math.max(0.45, Math.min(3.5, state.fitScale * state.zoomMultiplier));
 
               buildPageSlots();
             } catch (err) {
-              console.error('Failed to load PDF document:', err);
+              console.error('PDF load failed:', entry.readablePath, err);
               state.activePdfDoc = null;
-              pdfEmptyView.classList.remove('hidden');
-              pdfEmptyView.innerHTML =
-                '<span>원본 PDF를 불러오지 못했습니다: ' +
-                escapeHtml(fileName) +
-                '</span><span>서버 경로(<code>' +
-                escapeHtml(entry.remoteUrl) +
-                '</code>)에 파일이 있는지 확인하거나 관리자 모드에서 직접 업로드하세요.</span>';
+              state.activePageCount = 0;
+              updatePageIndicator(0, 0);
+              showPdfErrorBox(entry.readablePath, err);
               return;
             }
           }
 
           const clampedPage = Math.max(1, Math.min(state.activePageCount, targetPage || 1));
           scrollToPdfPage(clampedPage, shouldSmoothScroll);
+        }
+
+        function createPlaceholderMarkup(pageNum) {
+          return (
+            '<div class="spinner-ring" aria-hidden="true"></div>' +
+            '<span>페이지 불러오는 중... (p.' +
+            pageNum +
+            ')</span>'
+          );
         }
 
         function buildPageSlots() {
@@ -2525,10 +2984,17 @@
           pdfPagesContainer.innerHTML = '';
           pdfEmptyView.classList.add('hidden');
 
-          const scale = computeTargetScale();
-          state.zoomScale = scale;
-          const estW = Math.floor(state.basePageWidth * scale);
-          const estH = Math.floor(state.basePageHeight * scale);
+          state.fitScale = computeFitScale();
+          if (state.zoomMode === 'fit') {
+            state.zoomMultiplier = 1.0;
+            state.zoomScale = state.fitScale;
+          } else {
+            state.zoomScale = Math.max(0.45, Math.min(3.5, state.fitScale * state.zoomMultiplier));
+          }
+          updateZoomLabels();
+
+          const estW = Math.floor(state.basePageWidth * state.zoomScale);
+          const estH = Math.floor(state.basePageHeight * state.zoomScale);
 
           const fragment = document.createDocumentFragment();
           for (let p = 1; p <= state.activePageCount; p++) {
@@ -2540,7 +3006,7 @@
 
             const placeholder = document.createElement('div');
             placeholder.className = 'pdf-page-placeholder';
-            placeholder.textContent = 'p.' + p + ' 렌더링 대기...';
+            placeholder.innerHTML = createPlaceholderMarkup(p);
 
             const canvas = document.createElement('canvas');
             canvas.className = 'pdf-page-canvas';
@@ -2561,23 +3027,23 @@
 
           pdfPagesContainer.appendChild(fragment);
           updateMatchSlotBorders();
-          updatePageIndicator(1);
+          updatePageIndicator(1, state.activePageCount);
 
-          // Lazy Rendering Observer (현재 뷰포트 + 위아래 900px 인접 페이지 자동 렌더링)
+          // 스크롤 시 인접 페이지만 순차 렌더링하는 IntersectionObserver
           pageObserver = new IntersectionObserver(
             function (entries) {
               entries.forEach(function (entry) {
                 if (entry.isIntersecting) {
                   const pNum = parseInt(entry.target.dataset.page, 10);
                   if (!isNaN(pNum)) {
-                    schedulePageAndNeighborsRender(pNum);
+                    scheduleWindowedRender(pNum);
                   }
                 }
               });
             },
             {
               root: pdfScrollViewport,
-              rootMargin: '900px 0px 900px 0px',
+              rootMargin: '280px 0px 280px 0px',
               threshold: 0.01
             }
           );
@@ -2587,13 +3053,52 @@
           });
         }
 
-        function schedulePageAndNeighborsRender(centerPage) {
-          const pagesToRender = [centerPage, centerPage + 1, centerPage - 1];
-          pagesToRender.forEach(function (p) {
-            if (p >= 1 && p <= state.activePageCount) {
-              renderSinglePage(p, state.renderGeneration);
+        // 현재/검색 페이지 기준 위아래 ±2페이지(총 5페이지)만 우선 렌더링
+        function scheduleWindowedRender(centerPage) {
+          if (!state.activePdfDoc) return;
+          const offsets = [0, 1, -1, 2, -2];
+          offsets.forEach(function (delta) {
+            const target = centerPage + delta;
+            if (target >= 1 && target <= state.activePageCount) {
+              renderSinglePage(target, state.renderGeneration);
             }
           });
+          evictDistantCanvases(centerPage);
+        }
+
+        // 모바일 메모리 보호: 현재 페이지에서 멀리 떨어진 캔버스 자동 해제
+        function evictDistantCanvases(centerPage) {
+          if (state.renderedPages.size <= MAX_CACHED_CANVASES) return;
+
+          const sorted = Array.from(state.renderedPages).sort(function (a, b) {
+            return Math.abs(b - centerPage) - Math.abs(a - centerPage);
+          });
+
+          for (let i = 0; i < sorted.length; i++) {
+            if (state.renderedPages.size <= MAX_CACHED_CANVASES - 2) break;
+            const pNum = sorted[i];
+            if (Math.abs(pNum - centerPage) <= RENDER_WINDOW_RADIUS + 2) continue;
+
+            const slot = pdfPagesContainer.querySelector(
+              '.pdf-page-slot[data-page="' + pNum + '"]'
+            );
+            if (slot) {
+              const canvas = slot.querySelector('.pdf-page-canvas');
+              if (canvas) {
+                canvas.width = 0;
+                canvas.height = 0;
+              }
+              const hlLayer = slot.querySelector('.pdf-highlight-layer');
+              if (hlLayer) hlLayer.innerHTML = '';
+              const placeholder = slot.querySelector('.pdf-page-placeholder');
+              if (placeholder) {
+                placeholder.innerHTML = createPlaceholderMarkup(pNum);
+                placeholder.classList.remove('hidden');
+              }
+              slot.classList.remove('is-rendered');
+            }
+            state.renderedPages.delete(pNum);
+          }
         }
 
         async function renderSinglePage(pageNum, generation) {
@@ -2613,7 +3118,8 @@
             if (generation !== state.renderGeneration) return;
 
             const viewport = page.getViewport({ scale: state.zoomScale });
-            const dpr = Math.min(window.devicePixelRatio || 1, 3);
+            // 모바일 메모리 초과(캔버스 백화) 방지를 위해 DPR 최대 2로 엄격 제한
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
             const cssW = Math.floor(viewport.width);
             const cssH = Math.floor(viewport.height);
@@ -2631,23 +3137,31 @@
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            const renderContext = {
+            await page.render({
               canvasContext: ctx,
               viewport: viewport,
               transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null
-            };
+            }).promise;
 
-            await page.render(renderContext).promise;
             if (generation !== state.renderGeneration) return;
 
             const placeholder = slot.querySelector('.pdf-page-placeholder');
             if (placeholder) placeholder.classList.add('hidden');
+            slot.classList.add('is-rendered');
 
             state.renderedPages.add(pageNum);
             await renderHighlightsForPage(pageNum, page, viewport, slot, generation);
           } catch (err) {
             if (generation === state.renderGeneration) {
-              console.error('Render error p.' + pageNum + ':', err);
+              console.error('Page render error p.' + pageNum + ':', err);
+              const placeholder = slot.querySelector('.pdf-page-placeholder');
+              if (placeholder) {
+                placeholder.classList.remove('hidden');
+                placeholder.innerHTML =
+                  '<span style="color:#ff5252;">p.' +
+                  pageNum +
+                  ' 렌더링 실패 · 스크롤하여 재시도</span>';
+              }
             }
           } finally {
             state.renderingPages.delete(pageNum);
@@ -2686,7 +3200,6 @@
           });
           if (items.length === 0) return;
 
-          // 전체 페이지 문자열과 각 문자별 item 인덱스 매핑 (PDF가 토큰을 쪼갠 경우에도 정확히 좌표 계산)
           const charRefs = [];
           let joined = '';
           for (let i = 0; i < items.length; i++) {
@@ -2695,7 +3208,6 @@
               charRefs.push({ itemIdx: i, charIdx: c });
             }
             joined += str;
-            // 다음 아이템과 공백 구분 추가 (줄바꿈/단어 분리 대비)
             charRefs.push({ itemIdx: -1, charIdx: -1 });
             joined += ' ';
           }
@@ -2709,7 +3221,6 @@
             const mStart = match.index;
             const mEnd = mStart + match[0].length;
 
-            // 매칭 구간에 포함된 item별로 부분 범위(startChar..endChar) 수집
             const perItemRanges = new Map();
             for (let pos = mStart; pos < mEnd; pos++) {
               const ref = charRefs[pos];
@@ -2727,7 +3238,8 @@
               const item = items[itemIdx];
               const tx = window.pdfjsLib.Util.transform(viewport.transform, item.transform);
               const fontHeight = Math.hypot(tx[2], tx[3]) || Math.abs(tx[0]) || 12;
-              const fullWidth = (item.width || 0) * viewport.scale || fontHeight * item.str.length * 0.55;
+              const fullWidth =
+                (item.width || 0) * viewport.scale || fontHeight * item.str.length * 0.55;
               const strLen = Math.max(1, item.str.length);
 
               const x = tx[4] + (fullWidth * range.min) / strLen;
@@ -2795,23 +3307,24 @@
           );
           if (!slot) return;
 
-          schedulePageAndNeighborsRender(pageNum);
-          updatePageIndicator(pageNum);
+          scheduleWindowedRender(pageNum);
+          updatePageIndicator(pageNum, state.activePageCount);
 
-          if (smooth) {
-            slot.scrollIntoView({
-              behavior: 'smooth',
-              block: 'start',
-              inline: 'nearest'
-            });
+          const topOffset = state.isFullscreen ? 68 : 12;
+          const targetTop = Math.max(0, slot.offsetTop - topOffset);
+
+          if (smooth && typeof pdfScrollViewport.scrollTo === 'function') {
+            pdfScrollViewport.scrollTo({ top: targetTop, behavior: 'smooth' });
           } else {
-            pdfScrollViewport.scrollTop = Math.max(0, slot.offsetTop - 16);
+            pdfScrollViewport.scrollTop = targetTop;
           }
         }
 
-        function updatePageIndicator(pageNum) {
+        function updatePageIndicator(pageNum, totalPages) {
           state.currentVisiblePage = pageNum;
-          pdfPageIndicator.textContent = pageNum + ' / ' + state.activePageCount + ' p';
+          const total = typeof totalPages === 'number' ? totalPages : state.activePageCount;
+          pdfPageIndicator.textContent = pageNum + '/' + total + 'p';
+          vfPageIndicator.textContent = pageNum + '/' + total;
         }
 
         function detectCurrentVisiblePage() {
@@ -2819,7 +3332,7 @@
           if (!slots || slots.length === 0) return;
 
           const vpRect = pdfScrollViewport.getBoundingClientRect();
-          const probeY = vpRect.top + vpRect.height * 0.3;
+          const probeY = vpRect.top + vpRect.height * 0.35;
 
           let bestPage = state.currentVisiblePage;
           let bestDist = Infinity;
@@ -2835,45 +3348,50 @@
           }
 
           if (bestPage !== state.currentVisiblePage) {
-            updatePageIndicator(bestPage);
+            updatePageIndicator(bestPage, state.activePageCount);
+            scheduleWindowedRender(bestPage);
           }
         }
 
-        function applyZoom(mode, delta) {
+        function applyZoom(mode, value) {
           if (!state.activePdfDoc) return;
           const keepPage = state.currentVisiblePage;
 
           if (mode === 'fit') {
             state.zoomMode = 'fit';
-            state.zoomScale = computeTargetScale();
+            state.zoomMultiplier = 1.0;
+          } else if (mode === 'set') {
+            state.zoomMode = value === 1.0 ? 'fit' : 'custom';
+            state.zoomMultiplier = Math.max(0.6, Math.min(3.0, value));
           } else {
             state.zoomMode = 'custom';
-            state.zoomScale = Math.max(0.5, Math.min(3.0, state.zoomScale + delta));
+            state.zoomMultiplier = Math.max(0.6, Math.min(3.0, state.zoomMultiplier + value));
           }
 
           buildPageSlots();
           scrollToPdfPage(keepPage, false);
         }
 
-        function toggleFullscreenViewer() {
+        function setFullscreenViewer(enable) {
+          if (state.isFullscreen === enable) return;
           const keepPage = state.currentVisiblePage;
-          state.isFullscreen = !state.isFullscreen;
-          pdfViewerCard.classList.toggle('is-fullscreen', state.isFullscreen);
-          document.body.classList.toggle('viewer-fullscreen-lock', state.isFullscreen);
-          btnToggleFullscreen.textContent = state.isFullscreen
-            ? '전체화면 닫기'
-            : '전체화면 확대보기';
+          state.isFullscreen = enable;
 
-          if (state.activePdfDoc && state.zoomMode === 'fit') {
+          viewerWorkspace.classList.toggle('is-fullscreen', enable);
+          document.body.classList.toggle('viewer-fullscreen-lock', enable);
+
+          if (state.activePdfDoc) {
             setTimeout(function () {
-              buildPageSlots();
+              if (state.zoomMode === 'fit') {
+                buildPageSlots();
+              }
               scrollToPdfPage(keepPage, false);
-            }, 40);
+            }, 35);
           }
         }
 
         // =====================================================================
-        // 통합 검색 및 자동 페이지 점프 (알람 / DB2 / 수동 키워드)
+        // 검색 엔진 (자동 변환 매칭 + 수동 키워드 검색 + 배지/CTA 동기화)
         // =====================================================================
         function parseSmartManualQuery(rawQuery) {
           const trimmed = rawQuery.trim();
@@ -2922,7 +3440,6 @@
           });
 
           const hits = [];
-
           for (let mIdx = 0; mIdx < state.catalog.length; mIdx++) {
             const manual = state.catalog[mIdx];
             const pages = Array.isArray(manual.pages) ? manual.pages : [];
@@ -2956,62 +3473,83 @@
           return hits;
         }
 
-        function resetSearchNavUI() {
+        function resetSearchState() {
           state.searchMatches = [];
           state.currentMatchIdx = -1;
+          state.pendingJumpMatchIdx = null;
           state.activeHighlights = [];
-          pdfSearchNav.classList.add('hidden');
+          syncSearchUI();
           updateMatchSlotBorders();
           refreshHighlightsOnRenderedPages();
         }
 
-        function updateSearchNavUI() {
+        function syncSearchUI() {
           const total = state.searchMatches.length;
-          if (total === 0) {
-            if (state.activeHighlights.length > 0 && state.catalog.length > 0) {
-              pdfSearchNav.classList.remove('hidden');
-              pdfSearchCount.textContent = '검색 결과 0건';
-              pdfSearchTarget.textContent =
-                '일치하는 페이지를 찾지 못했습니다 (' + state.activeHighlights.join(', ') + ')';
-              btnPrevMatch.disabled = true;
-              btnNextMatch.disabled = true;
-            } else {
-              pdfSearchNav.classList.add('hidden');
-            }
-            return;
+
+          // 1) 상단 3번 탭 숫자 배지
+          if (total > 0) {
+            viewerTabBadge.textContent = String(total);
+            viewerTabBadge.classList.remove('hidden');
+          } else {
+            viewerTabBadge.classList.add('hidden');
           }
 
-          const current = state.searchMatches[state.currentMatchIdx];
-          pdfSearchNav.classList.remove('hidden');
-          pdfSearchCount.textContent =
-            '검색 결과 ' + (state.currentMatchIdx + 1) + ' / ' + total + '건';
-          pdfSearchTarget.textContent =
-            current.fileName + ' · p.' + current.pageNum + ' (' + current.matchedTerms.join(', ') + ')';
-          btnPrevMatch.disabled = total <= 1;
-          btnNextMatch.disabled = total <= 1;
+          // 2) 계산기 결과 카드 아래 [매뉴얼 해당 페이지 바로보기 (총 N건) →] 버튼
+          if (state.currentConversion && total > 0 && !manualKeywordInput.value.trim()) {
+            const firstHit = state.searchMatches[0];
+            btnJumpToManualText.textContent =
+              '매뉴얼 해당 페이지 바로보기 (총 ' + total + '건) →';
+            btnJumpToManual.classList.remove('hidden');
+            manualMatchNote.textContent =
+              '첫 일치: ' + firstHit.fileName + ' · p.' + firstHit.pageNum;
+            manualMatchNote.classList.remove('hidden');
+          } else {
+            btnJumpToManual.classList.add('hidden');
+            if (state.currentConversion && state.catalog.length > 0 && !manualKeywordInput.value.trim()) {
+              manualMatchNote.textContent =
+                '등록된 ' + state.catalog.length + '개 매뉴얼에서 일치하는 페이지를 찾지 못했습니다.';
+              manualMatchNote.classList.remove('hidden');
+            } else {
+              manualMatchNote.classList.add('hidden');
+            }
+          }
+
+          // 3) 탭 3 툴바 & 전체화면 플로팅 툴바 검색 네비게이션
+          const hasMatches = total > 0;
+          vtMatchIndicator.classList.toggle('hidden', !hasMatches);
+          btnPrevMatch.classList.toggle('hidden', !hasMatches);
+          btnNextMatch.classList.toggle('hidden', !hasMatches);
+          vfBtnPrev.classList.toggle('hidden', !hasMatches);
+          vfBtnNext.classList.toggle('hidden', !hasMatches);
+
+          if (hasMatches) {
+            const cur = Math.max(0, state.currentMatchIdx);
+            vtMatchIndicator.textContent = '검색 ' + (cur + 1) + '/' + total + '건';
+            const disabledNav = total <= 1;
+            btnPrevMatch.disabled = disabledNav;
+            btnNextMatch.disabled = disabledNav;
+            vfBtnPrev.disabled = disabledNav;
+            vfBtnNext.disabled = disabledNav;
+          }
         }
 
-        async function jumpToMatch(index, bringViewerIntoView) {
+        async function jumpToMatch(index) {
           if (state.searchMatches.length === 0) return;
           const total = state.searchMatches.length;
           const wrapped = ((index % total) + total) % total;
           state.currentMatchIdx = wrapped;
 
           const match = state.searchMatches[wrapped];
-          updateSearchNavUI();
+          syncSearchUI();
 
           await openPdfInViewer(match.fileName, match.pageNum, true);
           updateMatchSlotBorders();
           await refreshHighlightsOnRenderedPages();
-
-          if (bringViewerIntoView && !state.isFullscreen) {
-            pdfViewerCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
         }
 
-        async function runActiveSearch(bringViewerIntoView) {
+        async function runIndexSearch(autoJumpIfViewerActive) {
           if (state.catalog.length === 0) {
-            resetSearchNavUI();
+            resetSearchState();
             return;
           }
 
@@ -3030,28 +3568,33 @@
             keywords = [c.alarmStr, c.db2Address, c.shortDb2];
             requireAll = false;
           } else {
-            resetSearchNavUI();
+            resetSearchState();
             return;
           }
 
           state.activeHighlights = keywords;
           state.searchMatches = searchAllCatalogPages(keywords, requireAll);
           state.currentMatchIdx = state.searchMatches.length > 0 ? 0 : -1;
+          state.pendingJumpMatchIdx = state.searchMatches.length > 0 ? 0 : null;
 
-          updateSearchNavUI();
-          updateMatchSlotBorders();
+          syncSearchUI();
 
-          if (state.searchMatches.length > 0) {
-            await jumpToMatch(0, bringViewerIntoView);
-          } else {
-            await refreshHighlightsOnRenderedPages();
+          if (autoJumpIfViewerActive && state.activeTab === 'viewer') {
+            if (state.searchMatches.length > 0) {
+              state.pendingJumpMatchIdx = null;
+              await jumpToMatch(0);
+            } else {
+              updateMatchSlotBorders();
+              await refreshHighlightsOnRenderedPages();
+              showToast('일치하는 페이지를 찾지 못했습니다');
+            }
           }
         }
 
         // =====================================================================
-        // 계산기 및 최근 조회 기록 (localStorage)
+        // 계산기 (탭 1 / 탭 2) & 최근 조회 기록 (localStorage)
         // =====================================================================
-        function setResultDisplay(value, breakdown, label, conversionMeta, autoSearch) {
+        function setResultDisplay(value, breakdown, label, conversionMeta, runSearch) {
           resultLabel.textContent = label;
           state.currentConversion = conversionMeta || null;
 
@@ -3063,14 +3606,17 @@
             resultCard.setAttribute('aria-label', value + ' 복사하기');
           } else {
             state.currentCopyText = '';
-            resultValue.textContent = state.mode === 'alarmToDb2' ? 'DB2.DBX---.-' : '70----';
+            resultValue.textContent = state.activeTab === 'db2' ? '70----' : 'DB2.DBX---.-';
             resultBreakdown.textContent = '';
             resultCard.classList.remove('has-result');
             resultCard.setAttribute('aria-label', '변환 결과 대기 중');
           }
 
-          if (autoSearch && !manualKeywordInput.value.trim()) {
-            runActiveSearch(false);
+          if (runSearch) {
+            manualKeywordInput.value = '';
+            runIndexSearch(false);
+          } else if (!value) {
+            resetSearchState();
           }
         }
 
@@ -3173,39 +3719,16 @@
         }
 
         function restoreFromHistory(item) {
-          if (manualKeywordInput.value.trim()) {
-            manualKeywordInput.value = '';
-            btnClearKeyword.classList.add('hidden');
-          }
-          switchMode(item.mode, false);
+          manualKeywordInput.value = '';
           if (item.mode === 'alarmToDb2') {
             alarmInput.value = item.alarmStr;
-            evaluateAlarmInput(false);
+            switchAppTab('alarm', { focusInput: false });
           } else {
             byteInput.value = String(item.byteNum);
             setSelectedBit(item.bitNum);
-            evaluateDb2Input(false);
+            switchAppTab('db2', { focusInput: false });
           }
-        }
-
-        function switchMode(newMode, shouldFocus) {
-          state.mode = newMode;
-          const isAlarmMode = newMode === 'alarmToDb2';
-
-          document.body.classList.toggle('mode-db2', !isAlarmMode);
-          tabAlarmToDb2.setAttribute('aria-selected', String(isAlarmMode));
-          tabDb2ToAlarm.setAttribute('aria-selected', String(!isAlarmMode));
-
-          panelAlarmToDb2.classList.toggle('hidden', !isAlarmMode);
-          panelDb2ToAlarm.classList.toggle('hidden', isAlarmMode);
-
-          if (isAlarmMode) {
-            evaluateAlarmInput(false);
-            if (shouldFocus) alarmInput.focus();
-          } else {
-            evaluateDb2Input(false);
-            if (shouldFocus) byteInput.focus();
-          }
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function evaluateAlarmInput(saveHistory) {
@@ -3254,12 +3777,7 @@
           }
 
           const shortDb2 = res.address.replace(/^DB2\./i, '');
-          if (manualKeywordInput.value.trim()) {
-            manualKeywordInput.value = '';
-            btnClearKeyword.classList.add('hidden');
-          }
-
-          setFeedback(alarmFeedback, 'ok', '변환 완료 · 매뉴얼에서 일치 페이지를 자동 탐색합니다.');
+          setFeedback(alarmFeedback, 'ok', '변환 완료 · 결과 카드를 터치하면 복사됩니다.');
           setResultDisplay(
             res.address,
             res.breakdown,
@@ -3340,14 +3858,9 @@
 
           const db2Address = 'DB2.DBX' + byteNum + '.' + bitNum;
           const shortDb2 = 'DBX' + byteNum + '.' + bitNum;
-
-          if (manualKeywordInput.value.trim()) {
-            manualKeywordInput.value = '';
-            btnClearKeyword.classList.add('hidden');
-          }
-
           const breakdown = buildDb2Breakdown(byteNum, bitNum);
-          setFeedback(db2Feedback, 'ok', '역산 완료 · 매뉴얼에서 일치 페이지를 자동 탐색합니다.');
+
+          setFeedback(db2Feedback, 'ok', '역산 완료 · 결과 카드를 터치하면 복사됩니다.');
           setResultDisplay(
             alarmNum,
             breakdown,
@@ -3398,7 +3911,7 @@
           if (!state.currentCopyText) return;
           const textToCopy = state.currentCopyText;
 
-          if (state.mode === 'db2ToAlarm') {
+          if (state.activeTab === 'db2') {
             const byteNum = parseInt(byteInput.value, 10);
             if (!isNaN(byteNum) && byteNum >= 180 && state.selectedBit !== null) {
               clearTimeout(db2HistoryTimer);
@@ -3426,13 +3939,30 @@
           } else {
             showToast('복사에 실패했습니다');
           }
-
-          if (state.searchMatches.length > 0) {
-            jumpToMatch(Math.max(0, state.currentMatchIdx), true);
-          }
         }
 
-        // --- Event Wiring ---
+        // =====================================================================
+        // 이벤트 바인딩
+        // =====================================================================
+        // 3개 상단 탭
+        tabBtnAlarm.addEventListener('click', function () {
+          switchAppTab('alarm', { focusInput: true });
+        });
+
+        tabBtnDb2.addEventListener('click', function () {
+          switchAppTab('db2', { focusInput: true });
+        });
+
+        tabBtnViewer.addEventListener('click', function () {
+          switchAppTab('viewer');
+        });
+
+        // 계산기 결과 아래 [매뉴얼 해당 페이지 바로보기] 버튼
+        btnJumpToManual.addEventListener('click', function () {
+          switchAppTab('viewer', { jumpMatchIdx: Math.max(0, state.currentMatchIdx) });
+        });
+
+        // 관리자 모드
         btnAdminToggle.addEventListener('click', function () {
           if (state.isAdmin) {
             setAdminMode(false);
@@ -3474,22 +4004,13 @@
         pdfFileInput.addEventListener('change', function () {
           const files = pdfFileInput.files ? Array.from(pdfFileInput.files) : [];
           pdfFileInput.value = '';
-          if (files.length > 0) {
-            handleAdminUploadFiles(files);
-          }
+          if (files.length > 0) handleAdminUploadFiles(files);
         });
 
         btnDownloadIndex.addEventListener('click', handleDownloadRemoteIndexJson);
         btnClearLocalManuals.addEventListener('click', handleClearAllLocalManuals);
 
-        tabAlarmToDb2.addEventListener('click', function () {
-          switchMode('alarmToDb2', true);
-        });
-
-        tabDb2ToAlarm.addEventListener('click', function () {
-          switchMode('db2ToAlarm', true);
-        });
-
+        // 탭 1 입력
         alarmInput.addEventListener('input', function () {
           evaluateAlarmInput(true);
         });
@@ -3523,6 +4044,7 @@
           alarmInput.focus();
         });
 
+        // 탭 2 입력
         byteInput.addEventListener('input', function () {
           evaluateDb2Input('debounced');
         });
@@ -3545,33 +4067,114 @@
         resultCard.addEventListener('click', copyCurrentResult);
         btnClearHistory.addEventListener('click', clearHistory);
 
-        // Viewer & Search Events
+        // 탭 3 뷰어 컨트롤
         pdfFileSelect.addEventListener('change', function () {
           if (pdfFileSelect.value) {
             openPdfInViewer(pdfFileSelect.value, 1, false);
           }
         });
 
+        manualKeywordInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            runIndexSearch(true);
+          }
+        });
+
+        btnManualSearch.addEventListener('click', function () {
+          runIndexSearch(true);
+        });
+
+        btnPrevMatch.addEventListener('click', function () {
+          jumpToMatch(state.currentMatchIdx - 1);
+        });
+
+        btnNextMatch.addEventListener('click', function () {
+          jumpToMatch(state.currentMatchIdx + 1);
+        });
+
+        vfBtnPrev.addEventListener('click', function () {
+          jumpToMatch(state.currentMatchIdx - 1);
+        });
+
+        vfBtnNext.addEventListener('click', function () {
+          jumpToMatch(state.currentMatchIdx + 1);
+        });
+
         btnZoomOut.addEventListener('click', function () {
-          applyZoom('custom', -0.2);
+          applyZoom('delta', -0.25);
         });
 
         btnZoomIn.addEventListener('click', function () {
-          applyZoom('custom', 0.2);
+          applyZoom('delta', 0.25);
         });
 
         btnZoomFit.addEventListener('click', function () {
-          applyZoom('fit', 0);
+          applyZoom('fit', 1.0);
         });
 
-        btnToggleFullscreen.addEventListener('click', toggleFullscreenViewer);
+        vfBtnZoomOut.addEventListener('click', function () {
+          applyZoom('delta', -0.25);
+        });
+
+        vfBtnZoomIn.addEventListener('click', function () {
+          applyZoom('delta', 0.25);
+        });
+
+        // 전체화면 1.5x -> 2.0x -> 1.0x 원터치 배율 토글
+        vfBtnQuickZoom.addEventListener('click', function () {
+          if (state.zoomMultiplier < 1.35) {
+            applyZoom('set', 1.5);
+          } else if (state.zoomMultiplier < 1.85) {
+            applyZoom('set', 2.0);
+          } else {
+            applyZoom('fit', 1.0);
+          }
+        });
+
+        btnEnterFullscreen.addEventListener('click', function () {
+          setFullscreenViewer(true);
+        });
+
+        vfBtnClose.addEventListener('click', function () {
+          setFullscreenViewer(false);
+        });
+
+        // PDF 뷰어 영역 더블탭(모바일) 및 더블클릭(데스크톱) 시 전체화면 토글
+        let lastTapTime = 0;
+        let lastTapX = 0;
+        let lastTapY = 0;
+
+        pdfScrollViewport.addEventListener(
+          'touchend',
+          function (e) {
+            if (!state.activePdfDoc || e.touches.length > 0 || e.changedTouches.length !== 1) return;
+            const touch = e.changedTouches[0];
+            const now = Date.now();
+            const dist = Math.hypot(touch.clientX - lastTapX, touch.clientY - lastTapY);
+            if (now - lastTapTime < 300 && dist < 36) {
+              lastTapTime = 0;
+              setFullscreenViewer(!state.isFullscreen);
+            } else {
+              lastTapTime = now;
+              lastTapX = touch.clientX;
+              lastTapY = touch.clientY;
+            }
+          },
+          { passive: true }
+        );
+
+        pdfScrollViewport.addEventListener('dblclick', function () {
+          if (!state.activePdfDoc) return;
+          setFullscreenViewer(!state.isFullscreen);
+        });
 
         document.addEventListener('keydown', function (e) {
           if (e.key === 'Escape') {
             if (!adminModal.classList.contains('hidden')) {
               closeAdminModal();
             } else if (state.isFullscreen) {
-              toggleFullscreenViewer();
+              setFullscreenViewer(false);
             }
           }
         });
@@ -3588,52 +4191,26 @@
           { passive: true }
         );
 
-        manualKeywordInput.addEventListener('input', function () {
-          btnClearKeyword.classList.toggle('hidden', manualKeywordInput.value.trim().length === 0);
-        });
-
-        manualKeywordInput.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            runActiveSearch(true);
-          }
-        });
-
-        btnManualSearch.addEventListener('click', function () {
-          runActiveSearch(true);
-        });
-
-        btnClearKeyword.addEventListener('click', function () {
-          manualKeywordInput.value = '';
-          btnClearKeyword.classList.add('hidden');
-          runActiveSearch(false);
-          manualKeywordInput.focus();
-        });
-
-        btnPrevMatch.addEventListener('click', function () {
-          jumpToMatch(state.currentMatchIdx - 1, false);
-        });
-
-        btnNextMatch.addEventListener('click', function () {
-          jumpToMatch(state.currentMatchIdx + 1, false);
-        });
-
         let resizeTimer = null;
         window.addEventListener('resize', function () {
-          if (!state.activePdfDoc || state.zoomMode !== 'fit') return;
+          if (state.activeTab !== 'viewer' || !state.activePdfDoc || state.zoomMode !== 'fit') {
+            return;
+          }
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(function () {
             const keepPage = state.currentVisiblePage;
             buildPageSlots();
             scrollToPdfPage(keepPage, false);
-          }, 200);
+          }, 180);
         });
 
-        // --- App Bootstrap ---
+        // =====================================================================
+        // 앱 초기화
+        // =====================================================================
         async function init() {
           state.history = loadHistory();
           renderHistory();
-          switchMode('alarmToDb2', false);
+          switchAppTab('alarm', { focusInput: false });
 
           const [localResult, remoteResult] = await Promise.all([
             loadLocalManualsFromDb().catch(function () {
@@ -3645,10 +4222,6 @@
           state.localManuals = localResult;
           state.remoteManuals = remoteResult;
           rebuildCatalog();
-
-          if (state.catalog.length > 0) {
-            await openPdfInViewer(state.catalog[0].fileName, 1, false);
-          }
         }
 
         init();
