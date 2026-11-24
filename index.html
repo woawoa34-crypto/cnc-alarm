@@ -1186,6 +1186,33 @@
         text-align: center;
       }
 
+      .pdf-page-error-msg {
+        color: #ff6b6b;
+        font-size: 0.875rem;
+        font-weight: 700;
+        line-height: 1.45;
+      }
+
+      .btn-page-retry {
+        appearance: none;
+        min-height: 44px;
+        padding: 0 18px;
+        border-radius: 10px;
+        border: 1.5px solid var(--accent-orange);
+        background-color: rgba(255, 152, 0, 0.14);
+        color: var(--accent-orange);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: background-color 140ms var(--ease-out), transform 100ms var(--ease-out);
+      }
+
+      .btn-page-retry:active {
+        transform: scale(0.97);
+        background-color: rgba(255, 152, 0, 0.25);
+      }
+
       .spinner-ring {
         width: 34px;
         height: 34px;
@@ -1510,7 +1537,7 @@
         }
 
         .admin-actions-grid {
-          grid-template-columns: 1fr 1fr auto;
+          grid-template-columns: 1fr 1fr auto auto;
         }
 
         .manual-list {
@@ -1650,6 +1677,9 @@
           </button>
           <button id="btnClearLocalManuals" class="btn-control btn-danger-outline" type="button">
             전체 초기화
+          </button>
+          <button id="btnClearRemoteCache" class="btn-control" type="button">
+            원격 캐시 비우기
           </button>
         </div>
 
@@ -1964,14 +1994,32 @@
         const HISTORY_STORAGE_KEY = 'sinumerik840d_db2_history_v1';
         const MAX_HISTORY = 5;
         const IDB_NAME = 'Sinumerik840DPdfViewerDB';
-        const IDB_VERSION = 1;
+        const IDB_VERSION = 2;
         const IDB_STORE = 'localManuals';
-        const MAX_CACHED_CANVASES = 12; // 모바일 캔버스 메모리 초과(백화 현상) 방지 한도
-        const RENDER_WINDOW_RADIUS = 2; // 현재/검색 페이지 기준 위아래 ±2페이지(총 5페이지) 우선 렌더링
+        const IDB_CACHE_STORE = 'remotePdfCache';
+        const REMOTE_CACHE_MAX_BYTES = 260 * 1024 * 1024; // 모바일 기기 저장공간 보호 상한 (260MB)
+        const REMOTE_CACHE_MAX_FILES = 12;
+
+        const PDFJS_CDN_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+        const PDFJS_COMMON_OPTS = {
+          cMapUrl: PDFJS_CDN_BASE + 'cmaps/',
+          cMapPacked: true,
+          standardFontDataUrl: PDFJS_CDN_BASE + 'standard_fonts/',
+          useSystemFonts: true
+        };
+
+        const IS_MOBILE_DEVICE =
+          /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
+          (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches);
+
+        // 모바일 GPU 캔버스 메모리 백화 방지 상한
+        const MAX_CACHED_CANVASES = IS_MOBILE_DEVICE ? 5 : 10;
+        const RENDER_WINDOW_RADIUS = IS_MOBILE_DEVICE ? 1 : 2;
+        const MAX_CANVAS_PIXELS = IS_MOBILE_DEVICE ? 2600000 : 8000000;
+        const MAX_CANVAS_SIDE = IS_MOBILE_DEVICE ? 2048 : 4096;
 
         if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_CDN_BASE + 'pdf.worker.min.js';
         }
 
         const state = {
@@ -1985,9 +2033,11 @@
           isParsingPdf: false,
           localManuals: [],
           remoteManuals: [],
+          cachedRemoteFiles: new Set(),
           catalog: [],
           activeFileName: '',
           activePdfDoc: null,
+          activeDocSource: '',      // 'local' | 'cache' | 'stream' | 'blob'
           activePageCount: 0,
           currentVisiblePage: 1,
           zoomMode: 'fit',          // 'fit' | 'custom'
@@ -1999,6 +2049,7 @@
           renderGeneration: 0,
           renderedPages: new Set(),
           renderingPages: new Set(),
+          failedPages: new Set(),
           activeHighlights: [],
           searchMatches: [],        // [{ fileName, pageNum, matchedTerms }]
           currentMatchIdx: -1,
@@ -2006,10 +2057,20 @@
           isFullscreen: false
         };
 
-        const pdfDocCache = new Map();
+        const pdfDocCache = new Map();       // fileName -> { doc, source }
         const pageTextCache = new Map();
+        const remoteCacheInFlight = new Set();
         let pageObserver = null;
         let scrollRafId = null;
+        let scrollRenderTimer = null;
+        let programmaticJumpTimer = null;
+        let isProgrammaticJump = false;
+        let activeRenderTask = null;         // { pageNum, task, generation }
+        let renderQueue = [];                // [{ pageNum, priority, forceRetry }]
+        let isQueueRunning = false;
+        let renderCenterPage = 1;
+        let openSessionId = 0;
+        let fallbackUpgradePromise = null;
         let toastTimer = null;
         let db2HistoryTimer = null;
 
@@ -2031,6 +2092,7 @@
         const btnUploadPdf = document.getElementById('btnUploadPdf');
         const btnDownloadIndex = document.getElementById('btnDownloadIndex');
         const btnClearLocalManuals = document.getElementById('btnClearLocalManuals');
+        const btnClearRemoteCache = document.getElementById('btnClearRemoteCache');
         const pdfProgressWrap = document.getElementById('pdfProgressWrap');
         const pdfProgressStatus = document.getElementById('pdfProgressStatus');
         const pdfProgressPct = document.getElementById('pdfProgressPct');
@@ -2172,7 +2234,7 @@
         }
 
         // =====================================================================
-        // IndexedDB 영구 저장소 (ArrayBuffer + 페이지별 검색 텍스트)
+        // IndexedDB 영구 저장소 (로컬 매뉴얼 + 원격 PDF 자동 캐시)
         // =====================================================================
         function openDb() {
           return new Promise(function (resolve, reject) {
@@ -2185,6 +2247,9 @@
               const db = event.target.result;
               if (!db.objectStoreNames.contains(IDB_STORE)) {
                 db.createObjectStore(IDB_STORE, { keyPath: 'fileName' });
+              }
+              if (!db.objectStoreNames.contains(IDB_CACHE_STORE)) {
+                db.createObjectStore(IDB_CACHE_STORE, { keyPath: 'fileName' });
               }
             };
             req.onsuccess = function () {
@@ -2263,6 +2328,231 @@
               tx.onerror = function () {
                 db.close();
                 reject(tx.error || new Error('초기화 실패'));
+              };
+            });
+          });
+        }
+
+        // --- 원격 PDF 자동 캐시 (LRU 용량 관리 포함) ---
+        function listRemoteCacheKeysFromDb() {
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              if (!db.objectStoreNames.contains(IDB_CACHE_STORE)) {
+                db.close();
+                resolve([]);
+                return;
+              }
+              const tx = db.transaction(IDB_CACHE_STORE, 'readonly');
+              const store = tx.objectStore(IDB_CACHE_STORE);
+              const req = store.getAllKeys ? store.getAllKeys() : store.getAll();
+              req.onsuccess = function () {
+                db.close();
+                const res = Array.isArray(req.result) ? req.result : [];
+                const keys = res.map(function (item) {
+                  return typeof item === 'string' ? item : item && item.fileName ? item.fileName : '';
+                }).filter(Boolean);
+                resolve(keys);
+              };
+              req.onerror = function () {
+                db.close();
+                reject(req.error || new Error('캐시 목록 조회 실패'));
+              };
+            });
+          });
+        }
+
+        function getRemoteCacheFromDb(fileName) {
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              if (!db.objectStoreNames.contains(IDB_CACHE_STORE)) {
+                db.close();
+                resolve(null);
+                return;
+              }
+              const tx = db.transaction(IDB_CACHE_STORE, 'readonly');
+              const req = tx.objectStore(IDB_CACHE_STORE).get(fileName);
+              req.onsuccess = function () {
+                const record = req.result || null;
+                db.close();
+                if (record && record.pdfData && record.pdfData.byteLength > 0) {
+                  // LRU 접근 시각 백그라운드 갱신
+                  touchRemoteCacheAccess(fileName).catch(function () {});
+                  resolve(record);
+                } else {
+                  resolve(null);
+                }
+              };
+              req.onerror = function () {
+                db.close();
+                reject(req.error || new Error('캐시 읽기 실패'));
+              };
+            });
+          });
+        }
+
+        function touchRemoteCacheAccess(fileName) {
+          return openDb().then(function (db) {
+            return new Promise(function (resolve) {
+              if (!db.objectStoreNames.contains(IDB_CACHE_STORE)) {
+                db.close();
+                resolve();
+                return;
+              }
+              const tx = db.transaction(IDB_CACHE_STORE, 'readwrite');
+              const store = tx.objectStore(IDB_CACHE_STORE);
+              const getReq = store.get(fileName);
+              getReq.onsuccess = function () {
+                const rec = getReq.result;
+                if (rec) {
+                  rec.lastAccessedAt = Date.now();
+                  store.put(rec);
+                }
+              };
+              tx.oncomplete = function () {
+                db.close();
+                resolve();
+              };
+              tx.onerror = function () {
+                db.close();
+                resolve();
+              };
+            });
+          });
+        }
+
+        function evictOldestRemoteCache(excludeFileName, targetBytesToFree) {
+          return openDb().then(function (db) {
+            return new Promise(function (resolve) {
+              if (!db.objectStoreNames.contains(IDB_CACHE_STORE)) {
+                db.close();
+                resolve(0);
+                return;
+              }
+              const tx = db.transaction(IDB_CACHE_STORE, 'readwrite');
+              const store = tx.objectStore(IDB_CACHE_STORE);
+              const req = store.getAll();
+              let evicted = 0;
+
+              req.onsuccess = function () {
+                const rows = Array.isArray(req.result) ? req.result : [];
+                rows.sort(function (a, b) {
+                  return (a.lastAccessedAt || a.cachedAt || 0) - (b.lastAccessedAt || b.cachedAt || 0);
+                });
+
+                let totalBytes = rows.reduce(function (sum, r) {
+                  return sum + (r.byteLength || (r.pdfData ? r.pdfData.byteLength : 0));
+                }, 0);
+                let remainingFiles = rows.length;
+                let freedBytes = 0;
+
+                for (let i = 0; i < rows.length; i++) {
+                  const row = rows[i];
+                  if (row.fileName === excludeFileName) continue;
+                  const needFreeByTarget = targetBytesToFree > 0 && freedBytes < targetBytesToFree;
+                  const overBytes = totalBytes > REMOTE_CACHE_MAX_BYTES;
+                  const overFiles = remainingFiles > REMOTE_CACHE_MAX_FILES;
+                  if (!needFreeByTarget && !overBytes && !overFiles) break;
+
+                  const sz = row.byteLength || (row.pdfData ? row.pdfData.byteLength : 0);
+                  store.delete(row.fileName);
+                  state.cachedRemoteFiles.delete(row.fileName);
+                  totalBytes -= sz;
+                  remainingFiles -= 1;
+                  freedBytes += sz;
+                  evicted++;
+                }
+              };
+
+              tx.oncomplete = function () {
+                db.close();
+                resolve(evicted);
+              };
+              tx.onerror = function () {
+                db.close();
+                resolve(0);
+              };
+            });
+          });
+        }
+
+        async function saveRemoteCacheToDb(fileName, arrayBuffer) {
+          if (!arrayBuffer || arrayBuffer.byteLength === 0) return false;
+          // 단일 파일이 모바일 안전 캐시 상한을 넘으면 저장 생략
+          if (arrayBuffer.byteLength > REMOTE_CACHE_MAX_BYTES) return false;
+
+          const now = Date.now();
+          const record = {
+            fileName: fileName,
+            pdfData: arrayBuffer,
+            byteLength: arrayBuffer.byteLength,
+            cachedAt: now,
+            lastAccessedAt: now
+          };
+
+          const writeOnce = function () {
+            return openDb().then(function (db) {
+              return new Promise(function (resolve, reject) {
+                if (!db.objectStoreNames.contains(IDB_CACHE_STORE)) {
+                  db.close();
+                  reject(new Error('캐시 저장소 미생성'));
+                  return;
+                }
+                const tx = db.transaction(IDB_CACHE_STORE, 'readwrite');
+                tx.objectStore(IDB_CACHE_STORE).put(record);
+                tx.oncomplete = function () {
+                  db.close();
+                  resolve(true);
+                };
+                tx.onerror = function () {
+                  const err = tx.error;
+                  db.close();
+                  reject(err || new Error('캐시 저장 실패'));
+                };
+              });
+            });
+          };
+
+          try {
+            await writeOnce();
+            state.cachedRemoteFiles.add(fileName);
+            await evictOldestRemoteCache(fileName, 0);
+            renderAdminManualList();
+            return true;
+          } catch (err) {
+            if (err && (err.name === 'QuotaExceededError' || err.code === 22)) {
+              const evicted = await evictOldestRemoteCache(fileName, arrayBuffer.byteLength * 1.5);
+              if (evicted > 0) {
+                try {
+                  await writeOnce();
+                  state.cachedRemoteFiles.add(fileName);
+                  renderAdminManualList();
+                  return true;
+                } catch (_) {
+                  return false;
+                }
+              }
+            }
+            return false;
+          }
+        }
+
+        function clearRemoteCacheInDb() {
+          return openDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+              if (!db.objectStoreNames.contains(IDB_CACHE_STORE)) {
+                db.close();
+                resolve();
+                return;
+              }
+              const tx = db.transaction(IDB_CACHE_STORE, 'readwrite');
+              tx.objectStore(IDB_CACHE_STORE).clear();
+              tx.oncomplete = function () {
+                db.close();
+                resolve();
+              };
+              tx.onerror = function () {
+                db.close();
+                reject(tx.error || new Error('캐시 초기화 실패'));
               };
             });
           });
@@ -2384,17 +2674,21 @@
             totalPages += m.pageCount || 0;
           });
 
+          const cachedRemoteCount = state.cachedRemoteFiles.size;
           adminCatalogSummary.textContent =
             '전체 ' +
             state.catalog.length +
             '개 파일 (' +
             totalPages +
-            'p) · 로컬 저장 ' +
+            'p) · 로컬 ' +
             state.localManuals.length +
+            '개 · 원격캐시 ' +
+            cachedRemoteCount +
             '개';
 
           btnDownloadIndex.disabled = state.catalog.length === 0;
           btnClearLocalManuals.disabled = state.localManuals.length === 0;
+          btnClearRemoteCache.disabled = cachedRemoteCount === 0;
 
           if (state.catalog.length === 0) {
             const li = document.createElement('li');
@@ -2416,12 +2710,18 @@
             nameEl.textContent = manual.fileName;
             nameEl.title = manual.fileName;
 
+            const isCachedRemote =
+              manual.source !== 'local' && state.cachedRemoteFiles.has(manual.fileName);
             const metaEl = document.createElement('span');
             metaEl.className = 'manual-file-meta';
             metaEl.textContent =
               manual.pageCount +
               'p · ' +
-              (manual.source === 'local' ? '로컬 IndexedDB' : '원격 서버 인덱스');
+              (manual.source === 'local'
+                ? '로컬 IndexedDB'
+                : isCachedRemote
+                ? '원격 서버 · 기기 캐시됨'
+                : '원격 서버 인덱스');
 
             info.appendChild(nameEl);
             info.appendChild(metaEl);
@@ -2512,13 +2812,12 @@
               const newFit = computeFitScale();
               if (Math.abs(newFit - state.fitScale) > 0.03) {
                 const keepPage = state.currentVisiblePage;
-                buildPageSlots();
-                scrollToPdfPage(keepPage, false);
+                buildPageSlots(keepPage);
               } else {
-                scheduleWindowedRender(state.currentVisiblePage);
+                prioritizeRenderWindow(state.currentVisiblePage);
               }
             } else {
-              scheduleWindowedRender(state.currentVisiblePage);
+              prioritizeRenderWindow(state.currentVisiblePage);
             }
           }
         }
@@ -2643,7 +2942,9 @@
               try {
                 const rawBuffer = await file.arrayBuffer();
                 const parseCopy = rawBuffer.slice(0);
-                const pdf = await window.pdfjsLib.getDocument({ data: parseCopy }).promise;
+                const pdf = await window.pdfjsLib.getDocument(
+                  Object.assign({ data: parseCopy }, PDFJS_COMMON_OPTS)
+                ).promise;
                 const totalPages = pdf.numPages;
                 const pages = [];
 
@@ -2651,6 +2952,9 @@
                   const page = await pdf.getPage(pageNum);
                   const textContent = await page.getTextContent();
                   pages.push({ pageNum: pageNum, text: assemblePageText(textContent) });
+                  if (typeof page.cleanup === 'function') {
+                    page.cleanup();
+                  }
 
                   const filePct = 0.08 + (pageNum / totalPages) * 0.86;
                   updatePdfProgress(
@@ -2674,6 +2978,9 @@
                       setTimeout(resolve, 0);
                     });
                   }
+                }
+                if (typeof pdf.destroy === 'function') {
+                  pdf.destroy().catch(function () {});
                 }
 
                 updatePdfProgress(
@@ -2785,6 +3092,25 @@
           }
         }
 
+        async function handleClearRemoteCache() {
+          if (state.isParsingPdf || state.cachedRemoteFiles.size === 0) return;
+          try {
+            await clearRemoteCacheInDb();
+            state.cachedRemoteFiles.forEach(function (fileName) {
+              const cached = pdfDocCache.get(fileName);
+              if (cached && cached.source === 'cache') {
+                pdfDocCache.delete(fileName);
+              }
+            });
+            state.cachedRemoteFiles.clear();
+            renderAdminManualList();
+            showToast('원격 PDF 기기 캐시를 모두 비웠습니다');
+          } catch (err) {
+            console.error(err);
+            showToast('원격 캐시 비우기에 실패했습니다');
+          }
+        }
+
         function handleDownloadRemoteIndexJson() {
           if (state.catalog.length === 0) {
             showToast('내보낼 PDF 매뉴얼이 없습니다');
@@ -2819,9 +3145,163 @@
         }
 
         // =====================================================================
-        // 모바일 고속 스트리밍 PDF 뷰어 (Range Chunk + ±2 Windowed Rendering + DPR<=2)
+        // 모바일 고속 스트리밍 + 자동 캐싱 + 우선순위 순차 PDF 뷰어 엔진
+        // (CMap/표준폰트 + 256KB Range + 즉시 점프 + 캔버스 백화 방지/자동복구)
         // =====================================================================
+        function releaseCanvasMemory(canvas) {
+          if (!canvas) return;
+          try {
+            const ctx = canvas.getContext('2d');
+            if (ctx && canvas.width > 0 && canvas.height > 0) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+          } catch (_) {}
+          // iOS Safari / Android Chrome GPU 캔버스 메모리 즉시 반환 트릭
+          canvas.width = 1;
+          canvas.height = 1;
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+
+        function cancelActiveRenderTask() {
+          if (activeRenderTask && activeRenderTask.task) {
+            try {
+              activeRenderTask.task.cancel();
+            } catch (_) {}
+          }
+          activeRenderTask = null;
+        }
+
+        function releaseAllRenderedCanvases() {
+          cancelActiveRenderTask();
+          renderQueue = [];
+          const canvases = pdfPagesContainer.querySelectorAll('.pdf-page-canvas');
+          for (let i = 0; i < canvases.length; i++) {
+            releaseCanvasMemory(canvases[i]);
+          }
+          state.renderedPages.clear();
+          state.renderingPages.clear();
+          state.failedPages.clear();
+        }
+
+        function withTimeout(promise, ms, errMessage) {
+          let timer = null;
+          const timeoutPromise = new Promise(function (_, reject) {
+            timer = setTimeout(function () {
+              reject(new Error(errMessage || '요청 시간이 초과되었습니다.'));
+            }, ms);
+          });
+          return Promise.race([promise, timeoutPromise]).finally(function () {
+            clearTimeout(timer);
+          });
+        }
+
+        function computeSafeRenderDpr(vpWidth, vpHeight, lowMemFallback) {
+          const rawDeviceDpr = window.devicePixelRatio || 1;
+          const baseDpr = lowMemFallback
+            ? 1.0
+            : Math.min(rawDeviceDpr, IS_MOBILE_DEVICE ? 1.75 : 2.0);
+          const maxPixels = lowMemFallback ? 1200000 : MAX_CANVAS_PIXELS;
+          const maxSide = lowMemFallback ? 1400 : MAX_CANVAS_SIDE;
+
+          let dpr = baseDpr;
+          if (vpWidth * dpr > maxSide) {
+            dpr = Math.min(dpr, maxSide / vpWidth);
+          }
+          if (vpHeight * dpr > maxSide) {
+            dpr = Math.min(dpr, maxSide / vpHeight);
+          }
+          const totalPixels = vpWidth * dpr * (vpHeight * dpr);
+          if (totalPixels > maxPixels) {
+            dpr = Math.min(dpr, Math.sqrt(maxPixels / (vpWidth * vpHeight)));
+          }
+          return Math.max(0.5, dpr);
+        }
+
+        async function fetchRemotePdfArrayBuffer(manualEntry) {
+          const tryUrls = [manualEntry.remoteUrl];
+          if (manualEntry.remoteUrlNfd && manualEntry.remoteUrlNfd !== manualEntry.remoteUrl) {
+            tryUrls.push(manualEntry.remoteUrlNfd);
+          }
+
+          let lastErr = null;
+          for (let i = 0; i < tryUrls.length; i++) {
+            try {
+              const res = await fetch(tryUrls[i], { cache: 'default' });
+              if (!res.ok) {
+                const httpErr = new Error('HTTP ' + res.status);
+                httpErr.status = res.status;
+                throw httpErr;
+              }
+              const buf = await res.arrayBuffer();
+              if (buf && buf.byteLength > 0) {
+                return buf;
+              }
+            } catch (err) {
+              lastErr = err;
+            }
+          }
+          throw lastErr || new Error('원격 PDF 다운로드 실패');
+        }
+
+        function cacheRemotePdfInBackground(manualEntry) {
+          if (!manualEntry || manualEntry.source === 'local') return;
+          if (state.cachedRemoteFiles.has(manualEntry.fileName)) return;
+          if (remoteCacheInFlight.has(manualEntry.fileName)) return;
+
+          remoteCacheInFlight.add(manualEntry.fileName);
+
+          // 현재 보고 있는 페이지 렌더링이 완전히 끝난 뒤 백그라운드에서 조용히 캐싱
+          setTimeout(function () {
+            fetchRemotePdfArrayBuffer(manualEntry)
+              .then(function (buf) {
+                return saveRemoteCacheToDb(manualEntry.fileName, buf);
+              })
+              .then(function (saved) {
+                if (saved && state.activeFileName === manualEntry.fileName) {
+                  showToast('기기 자동 캐시 저장 완료 (다음부터 즉시 열림)');
+                }
+              })
+              .catch(function () {})
+              .finally(function () {
+                remoteCacheInFlight.delete(manualEntry.fileName);
+              });
+          }, 1200);
+        }
+
+        // 스트리밍 중 네트워크 끊김/Range 오류 발생 시 전체 Blob 로컬 로드로 자동 전환
+        async function upgradeActiveDocToFullBlobFallback(fileName) {
+          if (fallbackUpgradePromise) return fallbackUpgradePromise;
+          const entry = getCatalogEntry(fileName);
+          if (!entry || entry.source === 'local') return false;
+
+          fallbackUpgradePromise = (async function () {
+            try {
+              const buf = await fetchRemotePdfArrayBuffer(entry);
+              const saveCopy = buf.slice(0);
+              const blobDoc = await window.pdfjsLib.getDocument(
+                Object.assign({ data: buf }, PDFJS_COMMON_OPTS)
+              ).promise;
+
+              pdfDocCache.set(fileName, { doc: blobDoc, source: 'blob' });
+              if (state.activeFileName === fileName) {
+                state.activePdfDoc = blobDoc;
+                state.activeDocSource = 'blob';
+              }
+              saveRemoteCacheToDb(fileName, saveCopy).catch(function () {});
+              return true;
+            } catch (_) {
+              return false;
+            } finally {
+              fallbackUpgradePromise = null;
+            }
+          })();
+
+          return fallbackUpgradePromise;
+        }
+
         function showPdfErrorBox(readablePath, err) {
+          releaseAllRenderedCanvases();
           pdfPagesContainer.innerHTML = '';
           pdfEmptyView.classList.remove('hidden');
 
@@ -2859,43 +3339,92 @@
             throw new Error('PDF.js 라이브러리가 로드되지 않았습니다.');
           }
 
-          // 1) 로컬 IndexedDB 바이너리가 있는 경우 최우선 사용 (오프라인 즉시 로드)
+          // 1) 관리자 로컬 IndexedDB 바이너리가 있는 경우 최우선 사용 (오프라인 즉시 로드)
           if (manualEntry.pdfData && manualEntry.pdfData.byteLength > 0) {
-            const localDoc = await window.pdfjsLib.getDocument({
-              data: manualEntry.pdfData.slice(0)
-            }).promise;
-            pdfDocCache.set(manualEntry.fileName, localDoc);
-            return localDoc;
+            const localDoc = await window.pdfjsLib.getDocument(
+              Object.assign({ data: manualEntry.pdfData.slice(0) }, PDFJS_COMMON_OPTS)
+            ).promise;
+            const bundled = { doc: localDoc, source: 'local' };
+            pdfDocCache.set(manualEntry.fileName, bundled);
+            return bundled;
           }
 
-          // 2) 원격 서버/GitHub Pages 스트리밍 로드 (필수 Range Streaming 옵션 적용)
-          const streamOpts = {
-            url: manualEntry.remoteUrl,
-            disableAutoFetch: true,
-            disableStream: false,
-            rangeChunkSize: 65536
-          };
+          // 2) 자동 캐싱된 원격 PDF가 기기 IndexedDB에 있는 경우 즉시 로컬 로드 (지연 0)
+          try {
+            const cachedRec = await getRemoteCacheFromDb(manualEntry.fileName);
+            if (cachedRec && cachedRec.pdfData && cachedRec.pdfData.byteLength > 0) {
+              const cachedDoc = await window.pdfjsLib.getDocument(
+                Object.assign({ data: cachedRec.pdfData.slice(0) }, PDFJS_COMMON_OPTS)
+              ).promise;
+              state.cachedRemoteFiles.add(manualEntry.fileName);
+              const bundled = { doc: cachedDoc, source: 'cache' };
+              pdfDocCache.set(manualEntry.fileName, bundled);
+              return bundled;
+            }
+          } catch (_) {
+            // 캐시 읽기 실패 시 원격 스트리밍으로 자연스럽게 진행
+          }
+
+          // 3) 원격 서버/GitHub Pages 고속 스트리밍 로드 (256KB Range + CMap/표준폰트)
+          const streamOpts = Object.assign(
+            {
+              url: manualEntry.remoteUrl,
+              disableAutoFetch: true,
+              disableStream: false,
+              rangeChunkSize: 262144
+            },
+            PDFJS_COMMON_OPTS
+          );
 
           try {
-            const remoteDoc = await window.pdfjsLib.getDocument(streamOpts).promise;
-            pdfDocCache.set(manualEntry.fileName, remoteDoc);
-            return remoteDoc;
+            const remoteDoc = await withTimeout(
+              window.pdfjsLib.getDocument(streamOpts).promise,
+              22000,
+              '스트리밍 연결 시간이 초과되었습니다.'
+            );
+            const bundled = { doc: remoteDoc, source: 'stream' };
+            pdfDocCache.set(manualEntry.fileName, bundled);
+            return bundled;
           } catch (nfcErr) {
             // macOS 업로드로 인해 파일명이 NFD로 저장된 GitHub Pages 환경 자동 폴백
             if (manualEntry.remoteUrlNfd && manualEntry.remoteUrlNfd !== manualEntry.remoteUrl) {
               try {
-                const nfdDoc = await window.pdfjsLib.getDocument({
-                  url: manualEntry.remoteUrlNfd,
-                  disableAutoFetch: true,
-                  disableStream: false,
-                  rangeChunkSize: 65536
-                }).promise;
-                pdfDocCache.set(manualEntry.fileName, nfdDoc);
-                return nfdDoc;
-              } catch (_) {
-                throw nfcErr;
-              }
+                const nfdDoc = await withTimeout(
+                  window.pdfjsLib.getDocument(
+                    Object.assign(
+                      {
+                        url: manualEntry.remoteUrlNfd,
+                        disableAutoFetch: true,
+                        disableStream: false,
+                        rangeChunkSize: 262144
+                      },
+                      PDFJS_COMMON_OPTS
+                    )
+                  ).promise,
+                  22000,
+                  '스트리밍 연결 시간이 초과되었습니다.'
+                );
+                const bundled = { doc: nfdDoc, source: 'stream' };
+                pdfDocCache.set(manualEntry.fileName, bundled);
+                return bundled;
+              } catch (_) {}
             }
+
+            // 4) Range 스트리밍이 막히거나 불안정한 모바일 네트워크용 전체 Blob 폴백 + 즉시 캐싱
+            if (!nfcErr || nfcErr.status !== 404) {
+              try {
+                const buf = await fetchRemotePdfArrayBuffer(manualEntry);
+                const saveCopy = buf.slice(0);
+                const blobDoc = await window.pdfjsLib.getDocument(
+                  Object.assign({ data: buf }, PDFJS_COMMON_OPTS)
+                ).promise;
+                const bundled = { doc: blobDoc, source: 'blob' };
+                pdfDocCache.set(manualEntry.fileName, bundled);
+                saveRemoteCacheToDb(manualEntry.fileName, saveCopy).catch(function () {});
+                return bundled;
+              } catch (_) {}
+            }
+
             throw nfcErr;
           }
         }
@@ -2921,23 +3450,33 @@
           const isSameFile = state.activeFileName === fileName && state.activePdfDoc !== null;
 
           if (!isSameFile) {
+            const mySession = ++openSessionId;
+            releaseAllRenderedCanvases();
             state.activeFileName = fileName;
             pdfFileSelect.value = fileName;
             pdfPagesContainer.innerHTML = '';
             pdfEmptyView.classList.remove('hidden');
+
+            const isKnownCached =
+              entry.source === 'local' || state.cachedRemoteFiles.has(fileName);
             pdfEmptyView.innerHTML =
               '<div class="spinner-ring" aria-hidden="true"></div>' +
               '<span>' +
               escapeHtml(fileName) +
-              ' 스트리밍 연결 중...</span>';
+              (isKnownCached ? ' 기기 캐시에서 즉시 여는 중...' : ' 스트리밍 연결 중...') +
+              '</span>';
 
             try {
-              const pdfDoc = await getOrLoadPdfDoc(entry);
+              const loaded = await getOrLoadPdfDoc(entry);
+              if (mySession !== openSessionId) return;
+              const pdfDoc = loaded.doc;
               state.activePdfDoc = pdfDoc;
+              state.activeDocSource = loaded.source;
               state.activePageCount = pdfDoc.numPages;
 
-              const samplePageNum = Math.max(1, Math.min(pdfDoc.numPages, targetPage || 1));
-              const samplePage = await pdfDoc.getPage(samplePageNum);
+              const clampedInitial = Math.max(1, Math.min(pdfDoc.numPages, targetPage || 1));
+              const samplePage = await pdfDoc.getPage(clampedInitial);
+              if (mySession !== openSessionId) return;
               const baseVp = samplePage.getViewport({ scale: 1 });
               state.basePageWidth = baseVp.width;
               state.basePageHeight = baseVp.height;
@@ -2948,10 +3487,14 @@
                   ? state.fitScale
                   : Math.max(0.45, Math.min(3.5, state.fitScale * state.zoomMultiplier));
 
-              buildPageSlots();
+              // 목표 페이지로 먼저 즉시 점프한 뒤 감지기 연결 (1페이지 헛로딩 완전 차단)
+              buildPageSlots(clampedInitial);
+              return;
             } catch (err) {
+              if (mySession !== openSessionId) return;
               console.error('PDF load failed:', entry.readablePath, err);
               state.activePdfDoc = null;
+              state.activeDocSource = '';
               state.activePageCount = 0;
               updatePageIndicator(0, 0);
               showPdfErrorBox(entry.readablePath, err);
@@ -2972,15 +3515,28 @@
           );
         }
 
-        function buildPageSlots() {
+        function createRetryPlaceholderMarkup(pageNum) {
+          return (
+            '<span class="pdf-page-error-msg">p.' +
+            pageNum +
+            ' 페이지를 불러오지 못했습니다</span>' +
+            '<button type="button" class="btn-page-retry" data-retry-page="' +
+            pageNum +
+            '">다시 불러오기</button>'
+          );
+        }
+
+        function buildPageSlots(initialTargetPage) {
           if (pageObserver) {
             pageObserver.disconnect();
             pageObserver = null;
           }
 
+          clearTimeout(scrollRenderTimer);
+          clearTimeout(programmaticJumpTimer);
+          releaseAllRenderedCanvases();
+
           state.renderGeneration++;
-          state.renderedPages.clear();
-          state.renderingPages.clear();
           pdfPagesContainer.innerHTML = '';
           pdfEmptyView.classList.add('hidden');
 
@@ -3027,24 +3583,64 @@
 
           pdfPagesContainer.appendChild(fragment);
           updateMatchSlotBorders();
-          updatePageIndicator(1, state.activePageCount);
 
-          // 스크롤 시 인접 페이지만 순차 렌더링하는 IntersectionObserver
+          const targetPage = Math.max(1, Math.min(state.activePageCount, initialTargetPage || 1));
+          const targetSlot = pdfPagesContainer.querySelector(
+            '.pdf-page-slot[data-page="' + targetPage + '"]'
+          );
+
+          // 감지기 연결 전에 목표 페이지 위치로 즉시 점프 (중간/1페이지 낭비 제거)
+          isProgrammaticJump = true;
+          if (targetSlot) {
+            const topOffset = state.isFullscreen ? 68 : 12;
+            pdfScrollViewport.scrollTop = Math.max(0, targetSlot.offsetTop - topOffset);
+          } else {
+            pdfScrollViewport.scrollTop = 0;
+          }
+          updatePageIndicator(targetPage, state.activePageCount);
+
+          // 목표 페이지 최우선 순차 렌더링 즉시 시작
+          prioritizeRenderWindow(targetPage);
+
+          // 스크롤 안정화 후 IntersectionObserver 연결
+          programmaticJumpTimer = setTimeout(function () {
+            isProgrammaticJump = false;
+            attachPageObserver();
+          }, 80);
+        }
+
+        function attachPageObserver() {
+          if (pageObserver) {
+            pageObserver.disconnect();
+            pageObserver = null;
+          }
+          if (!state.activePdfDoc) return;
+
           pageObserver = new IntersectionObserver(
             function (entries) {
-              entries.forEach(function (entry) {
-                if (entry.isIntersecting) {
+              if (isProgrammaticJump) return;
+              let bestIntersecting = null;
+              let bestRatio = -1;
+
+              for (let i = 0; i < entries.length; i++) {
+                const entry = entries[i];
+                if (entry.isIntersecting && entry.intersectionRatio > bestRatio) {
                   const pNum = parseInt(entry.target.dataset.page, 10);
                   if (!isNaN(pNum)) {
-                    scheduleWindowedRender(pNum);
+                    bestRatio = entry.intersectionRatio;
+                    bestIntersecting = pNum;
                   }
                 }
-              });
+              }
+
+              if (bestIntersecting !== null) {
+                scheduleDebouncedRender(state.currentVisiblePage || bestIntersecting);
+              }
             },
             {
               root: pdfScrollViewport,
-              rootMargin: '280px 0px 280px 0px',
-              threshold: 0.01
+              rootMargin: IS_MOBILE_DEVICE ? '120px 0px 120px 0px' : '240px 0px 240px 0px',
+              threshold: 0.05
             }
           );
 
@@ -3053,20 +3649,120 @@
           });
         }
 
-        // 현재/검색 페이지 기준 위아래 ±2페이지(총 5페이지)만 우선 렌더링
-        function scheduleWindowedRender(centerPage) {
-          if (!state.activePdfDoc) return;
-          const offsets = [0, 1, -1, 2, -2];
-          offsets.forEach(function (delta) {
-            const target = centerPage + delta;
-            if (target >= 1 && target <= state.activePageCount) {
-              renderSinglePage(target, state.renderGeneration);
-            }
-          });
-          evictDistantCanvases(centerPage);
+        function scheduleDebouncedRender(centerPage) {
+          clearTimeout(scrollRenderTimer);
+          scrollRenderTimer = setTimeout(function () {
+            prioritizeRenderWindow(centerPage);
+          }, IS_MOBILE_DEVICE ? 85 : 40);
         }
 
-        // 모바일 메모리 보호: 현재 페이지에서 멀리 떨어진 캔버스 자동 해제
+        // 현재 페이지(0순위) → +1 → -1 순으로 1장씩 순차 렌더링 큐 구성
+        function prioritizeRenderWindow(centerPage, forceCenterRetry) {
+          if (!state.activePdfDoc || state.activePageCount === 0) return;
+
+          const clamped = Math.max(1, Math.min(state.activePageCount, centerPage || 1));
+          renderCenterPage = clamped;
+
+          const offsets = IS_MOBILE_DEVICE ? [0, 1, -1] : [0, 1, -1, 2, -2];
+          const desiredQueue = [];
+
+          for (let i = 0; i < offsets.length; i++) {
+            const p = clamped + offsets[i];
+            if (p < 1 || p > state.activePageCount) continue;
+            if (forceCenterRetry && offsets[i] === 0) {
+              state.renderedPages.delete(p);
+              state.failedPages.delete(p);
+            }
+            if (!state.renderedPages.has(p) && !state.failedPages.has(p)) {
+              desiredQueue.push({
+                pageNum: p,
+                priority: i,
+                forceRetry: Boolean(forceCenterRetry && offsets[i] === 0)
+              });
+            }
+          }
+
+          renderQueue = desiredQueue;
+
+          // 현재 보고 있는 페이지가 아직 안 그려졌는데 다른 페이지가 렌더 중이면 즉시 취소해 양보
+          if (activeRenderTask && activeRenderTask.task) {
+            const activeP = activeRenderTask.pageNum;
+            const centerNeedsRender = !state.renderedPages.has(clamped);
+            const activeIsFar = Math.abs(activeP - clamped) > RENDER_WINDOW_RADIUS;
+            if ((centerNeedsRender && activeP !== clamped) || activeIsFar) {
+              cancelActiveRenderTask();
+            }
+          }
+
+          evictDistantCanvases(clamped);
+          processRenderQueue();
+        }
+
+        function forceRetryPage(pageNum) {
+          if (!state.activePdfDoc) return;
+          state.failedPages.delete(pageNum);
+          state.renderedPages.delete(pageNum);
+          const slot = pdfPagesContainer.querySelector(
+            '.pdf-page-slot[data-page="' + pageNum + '"]'
+          );
+          if (slot) {
+            slot.classList.remove('is-rendered');
+            const placeholder = slot.querySelector('.pdf-page-placeholder');
+            if (placeholder) {
+              placeholder.innerHTML = createPlaceholderMarkup(pageNum);
+              placeholder.classList.remove('hidden');
+            }
+          }
+          prioritizeRenderWindow(pageNum, true);
+        }
+
+        async function processRenderQueue() {
+          if (isQueueRunning) return;
+          isQueueRunning = true;
+
+          try {
+            while (renderQueue.length > 0 && state.activePdfDoc) {
+              const nextJob = renderQueue.shift();
+              if (!nextJob) break;
+
+              const pNum = nextJob.pageNum;
+              if (state.renderedPages.has(pNum)) continue;
+              if (!nextJob.forceRetry && Math.abs(pNum - renderCenterPage) > RENDER_WINDOW_RADIUS + 1) {
+                continue;
+              }
+
+              const gen = state.renderGeneration;
+              const ok = await renderSinglePage(pNum, gen, false);
+
+              // 세대가 바뀌었으면(파일 교체/확대) 즉시 종료
+              if (gen !== state.renderGeneration) break;
+
+              // 현재 보고 있는 중심 페이지가 처음 성공적으로 그려지면 원격 자동 캐싱 백그라운드 시작
+              if (
+                ok &&
+                pNum === renderCenterPage &&
+                state.activeDocSource === 'stream' &&
+                state.activeFileName
+              ) {
+                const entry = getCatalogEntry(state.activeFileName);
+                if (entry) cacheRemotePdfInBackground(entry);
+              }
+
+              // 다음 인접 페이지로 넘어가기 전 브라우저 UI/스크롤 프레임 양보
+              await new Promise(function (resolve) {
+                requestAnimationFrame(resolve);
+              });
+            }
+          } finally {
+            isQueueRunning = false;
+            // 작업 도중 새 요청이 큐에 들어왔다면 즉시 재개
+            if (renderQueue.length > 0 && state.activePdfDoc) {
+              processRenderQueue();
+            }
+          }
+        }
+
+        // 모바일 메모리 보호: 현재 페이지에서 멀리 떨어진 캔버스 즉시 해제
         function evictDistantCanvases(centerPage) {
           if (state.renderedPages.size <= MAX_CACHED_CANVASES) return;
 
@@ -3075,19 +3771,16 @@
           });
 
           for (let i = 0; i < sorted.length; i++) {
-            if (state.renderedPages.size <= MAX_CACHED_CANVASES - 2) break;
+            if (state.renderedPages.size <= MAX_CACHED_CANVASES) break;
             const pNum = sorted[i];
-            if (Math.abs(pNum - centerPage) <= RENDER_WINDOW_RADIUS + 2) continue;
+            if (Math.abs(pNum - centerPage) <= RENDER_WINDOW_RADIUS) continue;
 
             const slot = pdfPagesContainer.querySelector(
               '.pdf-page-slot[data-page="' + pNum + '"]'
             );
             if (slot) {
               const canvas = slot.querySelector('.pdf-page-canvas');
-              if (canvas) {
-                canvas.width = 0;
-                canvas.height = 0;
-              }
+              releaseCanvasMemory(canvas);
               const hlLayer = slot.querySelector('.pdf-highlight-layer');
               if (hlLayer) hlLayer.innerHTML = '';
               const placeholder = slot.querySelector('.pdf-page-placeholder');
@@ -3101,70 +3794,135 @@
           }
         }
 
-        async function renderSinglePage(pageNum, generation) {
-          if (!state.activePdfDoc) return;
-          if (generation !== state.renderGeneration) return;
-          if (state.renderedPages.has(pageNum) || state.renderingPages.has(pageNum)) return;
+        async function renderSinglePage(pageNum, generation, lowMemFallback) {
+          if (!state.activePdfDoc) return false;
+          if (generation !== state.renderGeneration) return false;
+          if (state.renderedPages.has(pageNum)) return true;
 
           const slot = pdfPagesContainer.querySelector(
             '.pdf-page-slot[data-page="' + pageNum + '"]'
           );
-          if (!slot) return;
+          if (!slot) return false;
 
           state.renderingPages.add(pageNum);
+          let pageObj = null;
 
           try {
-            const page = await state.activePdfDoc.getPage(pageNum);
-            if (generation !== state.renderGeneration) return;
+            pageObj = await withTimeout(
+              state.activePdfDoc.getPage(pageNum),
+              18000,
+              '페이지 데이터 수신 시간 초과'
+            );
+            if (generation !== state.renderGeneration) return false;
 
-            const viewport = page.getViewport({ scale: state.zoomScale });
-            // 모바일 메모리 초과(캔버스 백화) 방지를 위해 DPR 최대 2로 엄격 제한
-            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const viewport = pageObj.getViewport({ scale: state.zoomScale });
+            const dpr = computeSafeRenderDpr(viewport.width, viewport.height, lowMemFallback);
 
             const cssW = Math.floor(viewport.width);
             const cssH = Math.floor(viewport.height);
+            const pxW = Math.max(1, Math.floor(viewport.width * dpr));
+            const pxH = Math.max(1, Math.floor(viewport.height * dpr));
 
             slot.style.width = cssW + 'px';
             slot.style.height = cssH + 'px';
 
             const canvas = slot.querySelector('.pdf-page-canvas');
-            canvas.width = Math.floor(viewport.width * dpr);
-            canvas.height = Math.floor(viewport.height * dpr);
+            if (!canvas) throw new Error('캔버스 요소를 찾을 수 없습니다.');
+
+            canvas.width = pxW;
+            canvas.height = pxH;
             canvas.style.width = cssW + 'px';
             canvas.style.height = cssH + 'px';
 
             const ctx = canvas.getContext('2d', { alpha: false });
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (!ctx) {
+              throw new Error('모바일 캔버스 2D 컨텍스트 할당 실패');
+            }
 
-            await page.render({
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, pxW, pxH);
+
+            const renderTask = pageObj.render({
               canvasContext: ctx,
               viewport: viewport,
               transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null
-            }).promise;
+            });
 
-            if (generation !== state.renderGeneration) return;
+            activeRenderTask = {
+              pageNum: pageNum,
+              task: renderTask,
+              generation: generation
+            };
+
+            await renderTask.promise;
+
+            if (activeRenderTask && activeRenderTask.task === renderTask) {
+              activeRenderTask = null;
+            }
+            if (generation !== state.renderGeneration) return false;
+
+            // 캔버스가 메모리 부족으로 0 크기로 해제되지 않았는지 최종 검증
+            if (canvas.width === 0 || canvas.height === 0) {
+              throw new Error('캔버스 메모리가 해제되었습니다.');
+            }
 
             const placeholder = slot.querySelector('.pdf-page-placeholder');
             if (placeholder) placeholder.classList.add('hidden');
             slot.classList.add('is-rendered');
 
+            state.failedPages.delete(pageNum);
             state.renderedPages.add(pageNum);
-            await renderHighlightsForPage(pageNum, page, viewport, slot, generation);
+
+            await renderHighlightsForPage(pageNum, pageObj, viewport, slot, generation);
+            return true;
           } catch (err) {
-            if (generation === state.renderGeneration) {
-              console.error('Page render error p.' + pageNum + ':', err);
-              const placeholder = slot.querySelector('.pdf-page-placeholder');
-              if (placeholder) {
-                placeholder.classList.remove('hidden');
-                placeholder.innerHTML =
-                  '<span style="color:#ff5252;">p.' +
-                  pageNum +
-                  ' 렌더링 실패 · 스크롤하여 재시도</span>';
-              }
+            if (activeRenderTask && activeRenderTask.pageNum === pageNum) {
+              activeRenderTask = null;
             }
+
+            // 스크롤 이탈로 의도적으로 취소된 경우는 에러가 아니므로 스피너 유지
+            if (err && err.name === 'RenderingCancelledException') {
+              const canvas = slot.querySelector('.pdf-page-canvas');
+              releaseCanvasMemory(canvas);
+              return false;
+            }
+
+            if (generation !== state.renderGeneration) return false;
+
+            // 1차 실패 시: 저해상도 안전 모드(또는 스트리밍→전체 Blob 폴백)로 1회 자동 재시도
+            if (!lowMemFallback) {
+              console.warn('p.' + pageNum + ' 1차 렌더 실패, 안전 모드 자동 재시도:', err);
+              const canvas = slot.querySelector('.pdf-page-canvas');
+              releaseCanvasMemory(canvas);
+
+              if (state.activeDocSource === 'stream' && state.activeFileName) {
+                await upgradeActiveDocToFullBlobFallback(state.activeFileName);
+              }
+              if (generation !== state.renderGeneration) return false;
+              return await renderSinglePage(pageNum, generation, true);
+            }
+
+            // 2차 최종 실패 시: 빈 흰 화면 대신 명확한 안내 + [다시 불러오기] 버튼 노출
+            console.error('Page render error p.' + pageNum + ':', err);
+            const canvas = slot.querySelector('.pdf-page-canvas');
+            releaseCanvasMemory(canvas);
+            slot.classList.remove('is-rendered');
+            state.failedPages.add(pageNum);
+
+            const placeholder = slot.querySelector('.pdf-page-placeholder');
+            if (placeholder) {
+              placeholder.classList.remove('hidden');
+              placeholder.innerHTML = createRetryPlaceholderMarkup(pageNum);
+            }
+            return false;
           } finally {
             state.renderingPages.delete(pageNum);
+            // 대용량 스캔 이미지/폰트 버퍼 즉시 반환 (모바일 OOM 방지)
+            if (pageObj && typeof pageObj.cleanup === 'function') {
+              try {
+                pageObj.cleanup();
+              } catch (_) {}
+            }
           }
         }
 
@@ -3278,9 +4036,12 @@
               '.pdf-page-slot[data-page="' + pNum + '"]'
             );
             if (!slot) continue;
-            const page = await state.activePdfDoc.getPage(pNum);
-            const viewport = page.getViewport({ scale: state.zoomScale });
-            await renderHighlightsForPage(pNum, page, viewport, slot, gen);
+            try {
+              const page = await state.activePdfDoc.getPage(pNum);
+              const viewport = page.getViewport({ scale: state.zoomScale });
+              await renderHighlightsForPage(pNum, page, viewport, slot, gen);
+              if (typeof page.cleanup === 'function') page.cleanup();
+            } catch (_) {}
           }
         }
 
@@ -3307,17 +4068,30 @@
           );
           if (!slot) return;
 
-          scheduleWindowedRender(pageNum);
+          const distance = Math.abs(pageNum - state.currentVisiblePage);
+          // 2페이지 초과 이동 시에는 중간 페이지 헛로딩을 막기 위해 반드시 즉시 점프
+          const useSmooth = Boolean(smooth && !IS_MOBILE_DEVICE && distance <= 2);
+
+          isProgrammaticJump = true;
+          clearTimeout(programmaticJumpTimer);
+          clearTimeout(scrollRenderTimer);
+
           updatePageIndicator(pageNum, state.activePageCount);
 
           const topOffset = state.isFullscreen ? 68 : 12;
           const targetTop = Math.max(0, slot.offsetTop - topOffset);
 
-          if (smooth && typeof pdfScrollViewport.scrollTo === 'function') {
+          if (useSmooth && typeof pdfScrollViewport.scrollTo === 'function') {
             pdfScrollViewport.scrollTo({ top: targetTop, behavior: 'smooth' });
           } else {
             pdfScrollViewport.scrollTop = targetTop;
           }
+
+          prioritizeRenderWindow(pageNum);
+
+          programmaticJumpTimer = setTimeout(function () {
+            isProgrammaticJump = false;
+          }, useSmooth ? 260 : 90);
         }
 
         function updatePageIndicator(pageNum, totalPages) {
@@ -3328,6 +4102,7 @@
         }
 
         function detectCurrentVisiblePage() {
+          if (isProgrammaticJump) return;
           const slots = pdfPagesContainer.children;
           if (!slots || slots.length === 0) return;
 
@@ -3349,7 +4124,9 @@
 
           if (bestPage !== state.currentVisiblePage) {
             updatePageIndicator(bestPage, state.activePageCount);
-            scheduleWindowedRender(bestPage);
+            scheduleDebouncedRender(bestPage);
+          } else if (!state.renderedPages.has(bestPage) && !state.failedPages.has(bestPage)) {
+            scheduleDebouncedRender(bestPage);
           }
         }
 
@@ -3368,8 +4145,7 @@
             state.zoomMultiplier = Math.max(0.6, Math.min(3.0, state.zoomMultiplier + value));
           }
 
-          buildPageSlots();
-          scrollToPdfPage(keepPage, false);
+          buildPageSlots(keepPage);
         }
 
         function setFullscreenViewer(enable) {
@@ -3383,11 +4159,42 @@
           if (state.activePdfDoc) {
             setTimeout(function () {
               if (state.zoomMode === 'fit') {
-                buildPageSlots();
+                buildPageSlots(keepPage);
+              } else {
+                scrollToPdfPage(keepPage, false);
               }
-              scrollToPdfPage(keepPage, false);
             }, 35);
           }
+        }
+
+        // 모바일 앱 전환/백그라운드 복귀 시 OS가 비운 흰 캔버스를 자동 감지해 복구
+        function recoverVisibleCanvasesAfterResume() {
+          if (state.activeTab !== 'viewer' || !state.activePdfDoc) return;
+          const curPage = state.currentVisiblePage || 1;
+          cancelActiveRenderTask();
+          renderQueue = [];
+          const renderedList = Array.from(state.renderedPages);
+
+          for (let i = 0; i < renderedList.length; i++) {
+            const pNum = renderedList[i];
+            const slot = pdfPagesContainer.querySelector(
+              '.pdf-page-slot[data-page="' + pNum + '"]'
+            );
+            if (!slot) continue;
+            const canvas = slot.querySelector('.pdf-page-canvas');
+            releaseCanvasMemory(canvas);
+            slot.classList.remove('is-rendered');
+            const placeholder = slot.querySelector('.pdf-page-placeholder');
+            if (placeholder) {
+              placeholder.innerHTML = createPlaceholderMarkup(pNum);
+              placeholder.classList.remove('hidden');
+            }
+          }
+
+          state.renderedPages.clear();
+          state.renderingPages.clear();
+          state.failedPages.clear();
+          prioritizeRenderWindow(curPage);
         }
 
         // =====================================================================
@@ -4009,6 +4816,7 @@
 
         btnDownloadIndex.addEventListener('click', handleDownloadRemoteIndexJson);
         btnClearLocalManuals.addEventListener('click', handleClearAllLocalManuals);
+        btnClearRemoteCache.addEventListener('click', handleClearRemoteCache);
 
         // 탭 1 입력
         alarmInput.addEventListener('input', function () {
@@ -4145,9 +4953,20 @@
         let lastTapX = 0;
         let lastTapY = 0;
 
+        pdfPagesContainer.addEventListener('click', function (e) {
+          const retryBtn = e.target && e.target.closest ? e.target.closest('.btn-page-retry') : null;
+          if (!retryBtn) return;
+          e.stopPropagation();
+          const pNum = parseInt(retryBtn.dataset.retryPage, 10);
+          if (!isNaN(pNum)) {
+            forceRetryPage(pNum);
+          }
+        });
+
         pdfScrollViewport.addEventListener(
           'touchend',
           function (e) {
+            if (e.target && e.target.closest && e.target.closest('.btn-page-retry')) return;
             if (!state.activePdfDoc || e.touches.length > 0 || e.changedTouches.length !== 1) return;
             const touch = e.changedTouches[0];
             const now = Date.now();
@@ -4164,7 +4983,8 @@
           { passive: true }
         );
 
-        pdfScrollViewport.addEventListener('dblclick', function () {
+        pdfScrollViewport.addEventListener('dblclick', function (e) {
+          if (e.target && e.target.closest && e.target.closest('.btn-page-retry')) return;
           if (!state.activePdfDoc) return;
           setFullscreenViewer(!state.isFullscreen);
         });
@@ -4176,6 +4996,12 @@
             } else if (state.isFullscreen) {
               setFullscreenViewer(false);
             }
+          }
+        });
+
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') {
+            recoverVisibleCanvasesAfterResume();
           }
         });
 
@@ -4199,8 +5025,7 @@
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(function () {
             const keepPage = state.currentVisiblePage;
-            buildPageSlots();
-            scrollToPdfPage(keepPage, false);
+            buildPageSlots(keepPage);
           }, 180);
         });
 
@@ -4212,15 +5037,19 @@
           renderHistory();
           switchAppTab('alarm', { focusInput: false });
 
-          const [localResult, remoteResult] = await Promise.all([
+          const [localResult, remoteResult, cachedKeys] = await Promise.all([
             loadLocalManualsFromDb().catch(function () {
               return [];
             }),
-            fetchRemoteIndex()
+            fetchRemoteIndex(),
+            listRemoteCacheKeysFromDb().catch(function () {
+              return [];
+            })
           ]);
 
           state.localManuals = localResult;
           state.remoteManuals = remoteResult;
+          state.cachedRemoteFiles = new Set(cachedKeys);
           rebuildCatalog();
         }
 
